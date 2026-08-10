@@ -6,9 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -21,7 +19,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -44,7 +41,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var etInput: EditText
     private lateinit var btnSend: Button
     private lateinit var btnSetApiKey: Button
-    private lateinit var btnSelectLocalFile: Button
     private lateinit var btnSelectModel: Button
     private lateinit var btnResetChat: Button
     private lateinit var btnVoice: Button
@@ -55,47 +51,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val KEY_SELECTED_MODEL = "SELECTED_MODEL_ID"
     private val KEY_SELECTED_MODEL_NAME = "SELECTED_MODEL_NAME"
     private val KEY_API_KEY = "NVIDIA_API_KEY"
-    private val KEY_LOCAL_MODEL_NAME = "LOCAL_MODEL_FILE_NAME"
-    private val KEY_IS_LOCAL_MODE = "IS_LOCAL_AI_MODE"
 
     private val messageHistory = mutableListOf<Pair<String, Boolean>>()
 
-    private var isLocalAiMode = false
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var tts: TextToSpeech
     private var isTtsReady = false
     private var isTikiTakaActive = false
 
-    private val selectLocalModelLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val fileName = getFileNameFromUri(uri) ?: "선택된 로컬 파일"
-            isLocalAiMode = true
-
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit()
-                .putString(KEY_LOCAL_MODEL_NAME, fileName)
-                .putBoolean(KEY_IS_LOCAL_MODE, true)
-                .apply()
-
-            Toast.makeText(this, "로컬 모델 설정: $fileName", Toast.LENGTH_SHORT).show()
-            updateModelDisplay()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 최상단 상태바(Status Bar) 배경색 통일 (#1A1A1A)
         window.statusBarColor = Color.parseColor("#1A1A1A")
 
         tvModelName = findViewById(R.id.tvModelName)
         etInput = findViewById(R.id.etInput)
         btnSend = findViewById(R.id.btnSend)
         btnSetApiKey = findViewById(R.id.btnSetApiKey)
-        btnSelectLocalFile = findViewById(R.id.btnSelectLocalFile)
         btnSelectModel = findViewById(R.id.btnSelectModel)
         btnResetChat = findViewById(R.id.btnResetChat)
         btnVoice = findViewById(R.id.btnVoice)
@@ -103,9 +76,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         chatLayout = findViewById(R.id.chatLayout)
 
         applyCustomComponentStyles()
-
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        isLocalAiMode = prefs.getBoolean(KEY_IS_LOCAL_MODE, false)
 
         addMessageView("안녕하세요. NOAH AI입니다. 질문을 입력하거나 음성 대화를 사용해 보세요.", false)
         updateModelDisplay()
@@ -115,7 +85,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         checkAudioPermission()
 
         btnSetApiKey.setOnClickListener { showApiKeyDialog() }
-        btnSelectLocalFile.setOnClickListener { selectLocalModelLauncher.launch(arrayOf("*/*")) }
         btnSelectModel.setOnClickListener { showModelSelectionDialog() }
         btnResetChat.setOnClickListener { resetChatHistory() }
 
@@ -130,7 +99,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun applyCustomComponentStyles() {
-        val allButtons = listOf(btnSetApiKey, btnSelectLocalFile, btnSelectModel, btnResetChat, btnVoice, btnSend)
+        val allButtons = listOf(btnSetApiKey, btnSelectModel, btnResetChat, btnVoice, btnSend)
         allButtons.forEach { it.backgroundTintList = null }
 
         etInput.background = createRoundedDrawable("#2E2E2E", 10f)
@@ -139,7 +108,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         val menuButtonBg = createRoundedDrawable("#333333", 8f)
         btnSetApiKey.background = menuButtonBg
-        btnSelectLocalFile.background = menuButtonBg
         btnSelectModel.background = menuButtonBg
         btnResetChat.background = createRoundedDrawable("#262626", 8f)
     }
@@ -274,22 +242,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         addMessageView(prompt, true)
         val aiTv = addMessageView("생성 중...", false)
 
-        if (isLocalAiMode) {
-            runLocalAiFallback(prompt, aiTv, "로컬 AI 모드 실행")
-        } else {
-            callNvidiaApiStreaming(prompt, aiTv)
-        }
+        callNvidiaApiStreaming(prompt, aiTv)
     }
 
     private fun updateModelDisplay() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (isLocalAiMode) {
-            val localFileName = prefs.getString(KEY_LOCAL_MODEL_NAME, "로컬 모델")
-            tvModelName.text = "Local: $localFileName"
-        } else {
-            val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "Google Gemma 4 31B")
-            tvModelName.text = "NVIDIA: $savedModelName"
-        }
+        val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "Google Gemma 4 31B")
+        tvModelName.text = "NVIDIA: $savedModelName"
     }
 
     private fun showApiKeyDialog() {
@@ -303,9 +262,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val input = EditText(this).apply {
             setText(prefs.getString(KEY_API_KEY, ""))
             hint = "nvapi-..."
-            setTextColor(Color.parseColor("#FFFFFF"))       // 흰색 글씨
-            setHintTextColor(Color.parseColor("#888888"))   // 연회색 힌트
-            background = createRoundedDrawable("#2E2E2E", 8f) // 어두운 바탕 지정
+            setTextColor(Color.parseColor("#FFFFFF"))
+            setHintTextColor(Color.parseColor("#888888"))
+            background = createRoundedDrawable("#2E2E2E", 8f)
             setPadding(32, 24, 32, 24)
         }
 
@@ -329,12 +288,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         AlertDialog.Builder(this)
             .setTitle("온라인 모델 선택")
             .setItems(models) { _, which ->
-                isLocalAiMode = false
                 val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs.edit()
                     .putString(KEY_SELECTED_MODEL, modelIds[which])
                     .putString(KEY_SELECTED_MODEL_NAME, models[which])
-                    .putBoolean(KEY_IS_LOCAL_MODE, false)
                     .apply()
                 updateModelDisplay()
             }
@@ -347,7 +304,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "google/gemma-4-31b-it") ?: "google/gemma-4-31b-it"
 
         if (apiKey.isEmpty()) {
-            runLocalAiFallback(prompt, aiTv, "API 키가 없습니다. 설정해 주세요.")
+            aiTv.text = "[오류] API 키가 설정되지 않았습니다.\n상단 '키' 버튼을 눌러 NVIDIA API 키를 입력해 주세요."
             return
         }
 
@@ -425,40 +382,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         speakText(finalAnswer)
                     }
                 } else {
+                    // 서버 응답 에러 발생 시 에러 스트림 읽기
+                    val errorStream = conn.errorStream
+                    val errorLog = if (errorStream != null) {
+                        BufferedReader(InputStreamReader(errorStream, Charsets.UTF_8)).use { it.readText() }
+                    } else {
+                        "상세 에러 내용 없음"
+                    }
                     withContext(Dispatchers.Main) {
-                        runLocalAiFallback(prompt, aiTv, "API 오류 Code: ${conn.responseCode}")
+                        aiTv.text = "[API 오류 발생]\n코드: ${conn.responseCode}\n로그:\n$errorLog"
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    runLocalAiFallback(prompt, aiTv, "네트워크 오류: ${e.localizedMessage}")
+                    aiTv.text = "[네트워크 오류 로그]\n${e.localizedMessage ?: e.toString()}"
                 }
             }
         }
-    }
-
-    private fun runLocalAiFallback(prompt: String, aiTv: TextView, reason: String) {
-        Toast.makeText(this, reason, Toast.LENGTH_LONG).show()
-        val responseText = "로컬 AI 모드 답변입니다. ($reason)"
-        aiTv.text = responseText
-        speakText(responseText)
     }
 
     private fun checkAudioPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
         }
-    }
-
-    private fun getFileNameFromUri(uri: Uri): String? {
-        var fileName: String? = null
-        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1) fileName = cursor.getString(nameIndex)
-            }
-        }
-        return fileName ?: uri.lastPathSegment
     }
 
     override fun onDestroy() {
