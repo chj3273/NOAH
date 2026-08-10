@@ -242,8 +242,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun updateModelDisplay() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "Google Gemma 4 31B")
-        tvModelName.text = "NVIDIA: $savedModelName"
+        val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "llama 3.3 N 49B")
+        tvModelName.text = "NOAH AI: $savedModelName"
     }
 
     private fun showApiKeyDialog() {
@@ -277,8 +277,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun showModelSelectionDialog() {
-        val models = arrayOf("Nemotron 3 120B A12B", "llama 3.3 N 49B", "Gemma 4 31B", "GPT-OSS 20B")
-        val modelIds = arrayOf("nvidia/nemotron-3-super-120b-a12b", "nvidia/llama-3.3-nemotron-super-49b-v1.5", "google/gemma-4-31b-it", "openai/gpt-oss-20b")
+        val models = arrayOf("llama 3.3 N 49B", "Gemma 4 31B", "GPT-OSS 20B")
+        val modelIds = arrayOf("nvidia/llama-3.3-nemotron-super-49b-v1.5", "google/gemma-4-31b-it", "openai/gpt-oss-20b")
 
         AlertDialog.Builder(this)
             .setTitle("온라인 모델 선택")
@@ -296,7 +296,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun callNvidiaApiStreaming(prompt: String, aiTv: TextView) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiKey = prefs.getString(KEY_API_KEY, "") ?: ""
-        val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "nvidia/nemotron-3-super-120b-a12b") ?: "nvidia/nemotron-3-super-120b-a12b"
+        val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "nvidia/llama-3.3-nemotron-super-49b-v1.5") ?: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
 
         if (apiKey.isEmpty()) {
             aiTv.text = "[오류] API 키가 설정되지 않았습니다.\n상단 '키' 버튼을 눌러 NVIDIA API 키를 입력해 주세요."
