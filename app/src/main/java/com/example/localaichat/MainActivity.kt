@@ -13,7 +13,6 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -23,7 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.example.localaichat.R
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,31 +39,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var tvModelName: TextView
     private lateinit var tvResponse: TextView
     private lateinit var etInput: EditText
-    private lateinit var btnSend: Button
-    private lateinit var btnSelectModel: Button
-    private lateinit var btnSetApiKey: Button
-    private lateinit var btnLocalAi: Button
-    private lateinit var btnSelectLocalFile: Button
-    private lateinit var btnFallbackSetting: Button
-    private lateinit var btnVoice: Button
+    private lateinit var btnSend: MaterialButton
+    private lateinit var btnSetApiKey: MaterialButton
+    private lateinit var btnSelectLocalFile: MaterialButton
+    private lateinit var btnSelectModel: MaterialButton
+    private lateinit var btnVoice: MaterialButton
 
     private val PREFS_NAME = "NOAH_PREFS"
     private val KEY_SELECTED_MODEL = "SELECTED_MODEL_ID"
     private val KEY_SELECTED_MODEL_NAME = "SELECTED_MODEL_NAME"
     private val KEY_API_KEY = "NVIDIA_API_KEY"
-    private val KEY_AUTO_FALLBACK = "AUTO_FALLBACK_LOCAL_AI"
     private val KEY_LOCAL_MODEL_URI = "LOCAL_MODEL_FILE_URI"
     private val KEY_LOCAL_MODEL_NAME = "LOCAL_MODEL_FILE_NAME"
 
     private val chatHistory = mutableListOf<Pair<String, String>>()
     private var isLocalAiMode = false
 
-    // 음성 인식(STT) 및 읽기(TTS) 관련
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var tts: TextToSpeech
     private var isTtsReady = false
-    private var isTikiTakaActive = false // 연속 음성 티키타카 모드 상태
+    private var isTikiTakaActive = false
 
+    // 로컬 파일 선택기 Launcher
     private val selectLocalModelLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -83,7 +79,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .putString(KEY_LOCAL_MODEL_NAME, fileName)
                 .apply()
 
-            Toast.makeText(this, "로컬 AI 파일 지정 완료: $fileName", Toast.LENGTH_SHORT).show()
+            isLocalAiMode = true
+            Toast.makeText(this, "로컬 모델 지정: $fileName", Toast.LENGTH_SHORT).show()
             updateModelDisplay()
         }
     }
@@ -96,40 +93,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         tvResponse = findViewById(R.id.tvResponse)
         etInput = findViewById(R.id.etInput)
         btnSend = findViewById(R.id.btnSend)
-        btnSelectModel = findViewById(R.id.btnSelectModel)
         btnSetApiKey = findViewById(R.id.btnSetApiKey)
-        btnLocalAi = findViewById(R.id.btnLocalAi)
         btnSelectLocalFile = findViewById(R.id.btnSelectLocalFile)
-        btnFallbackSetting = findViewById(R.id.btnFallbackSetting)
+        btnSelectModel = findViewById(R.id.btnSelectModel)
         btnVoice = findViewById(R.id.btnVoice)
-
-        tvModelName.setTextColor(Color.BLACK)
-        tvResponse.setTextColor(Color.BLACK)
-        etInput.setTextColor(Color.BLACK)
 
         updateModelDisplay()
 
-        // TTS & STT 초기화
         tts = TextToSpeech(this, this)
         initSpeechRecognizer()
-
-        // 마이크 권한 체크 및 요청
         checkAudioPermission()
 
         btnSetApiKey.setOnClickListener { showApiKeyDialog() }
-        btnSelectModel.setOnClickListener { showModelSelectionDialog() }
         btnSelectLocalFile.setOnClickListener { selectLocalModelLauncher.launch(arrayOf("*/*")) }
+        btnSelectModel.setOnClickListener { showModelSelectionDialog() }
 
-        btnLocalAi.setOnClickListener {
-            isLocalAiMode = !isLocalAiMode
-            updateModelDisplay()
-            val modeMsg = if (isLocalAiMode) "로컬 AI 모드" else "온라인 API 모드"
-            Toast.makeText(this, "$modeMsg 로 전환되었습니다.", Toast.LENGTH_SHORT).show()
-        }
-
-        btnFallbackSetting.setOnClickListener { showFallbackSettingDialog() }
-
-        // 🎙️ 음성 티키타카 버튼 클릭 이벤트
+        // 하단 음성 버튼 (티키타카 토글)
         btnVoice.setOnClickListener {
             if (isTikiTakaActive) {
                 stopTikiTakaMode()
@@ -139,12 +118,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
 
         btnSend.setOnClickListener {
-            stopTikiTakaMode() // 수동 전송 시 티키타카 연속 모드 해제
+            stopTikiTakaMode()
             processUserPrompt(etInput.text.toString().trim())
         }
     }
 
-    // TTS 초기화 콜백
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             val result = tts.setLanguage(Locale.KOREAN)
@@ -152,46 +130,36 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 isTtsReady = true
                 tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {}
-
                     override fun onDone(utteranceId: String?) {
-                        // AI가 말을 끝마치면, 티키타카 모드가 켜져있을 경우 즉시 마이크를 열어 다음 말을 들음
                         if (isTikiTakaActive) {
-                            runOnUiThread {
-                                startListening()
-                            }
+                            runOnUiThread { startListening() }
                         }
                     }
-
                     override fun onError(utteranceId: String?) {}
                 })
             }
         }
     }
 
-    // STT (음성 인식) 초기화
     private fun initSpeechRecognizer() {
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 tvResponse.text = "듣고 있습니다... 말씀해 주세요"
             }
-
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
                 tvResponse.text = "음성을 분석하고 답변을 생성하는 중입니다..."
             }
-
             override fun onError(error: Int) {
                 if (isTikiTakaActive) {
-                    // 오류 또는 타임아웃 발생 시 티키타카 모드 중이면 다시 들음
                     startListening()
                 } else {
                     Toast.makeText(applicationContext, "음성을 인식하지 못했습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
-
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
@@ -200,7 +168,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     processUserPrompt(recognizedText)
                 }
             }
-
             override fun onPartialResults(partialResults: Bundle?) {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
@@ -209,19 +176,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun startTikiTakaMode() {
         isTikiTakaActive = true
         btnVoice.text = "중지"
-        btnVoice.setBackgroundColor(Color.RED)
-        Toast.makeText(this, "음성 모드를 시작합니다.", Toast.LENGTH_SHORT).show()
+        btnVoice.setBackgroundColor(Color.parseColor("#E53935"))
+        Toast.makeText(this, "음성 대화(티키타카)를 시작합니다.", Toast.LENGTH_SHORT).show()
         startListening()
     }
 
     private fun stopTikiTakaMode() {
         isTikiTakaActive = false
-        btnVoice.text = "음성 모드"
-        btnVoice.setBackgroundColor(Color.LTGRAY)
+        btnVoice.text = "음성"
+        btnVoice.setBackgroundColor(Color.parseColor("#262626"))
         speechRecognizer.stopListening()
-        if (tts.isSpeaking) {
-            tts.stop()
-        }
+        if (tts.isSpeaking) tts.stop()
     }
 
     private fun startListening() {
@@ -239,7 +204,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun speakText(text: String) {
         if (isTtsReady) {
-            val cleanText = text.replace(Regex("[*#_~]"), "") // 특수문자 제거 후 낭독
+            val cleanText = text.replace(Regex("[*#_~]"), "")
             tts.speak(cleanText, TextToSpeech.QUEUE_FLUSH, null, "NOAH_UTTERANCE_ID")
         }
     }
@@ -260,7 +225,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun updateModelDisplay() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (isLocalAiMode) {
-            val localFileName = prefs.getString(KEY_LOCAL_MODEL_NAME, "미지정 ([로컬 파일 지정] 버튼 클릭)")
+            val localFileName = prefs.getString(KEY_LOCAL_MODEL_NAME, "로컬 모델")
             tvModelName.text = "Local AI: $localFileName"
         } else {
             val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "Google Gemma 4 31B")
@@ -275,7 +240,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val input = EditText(this).apply {
             setText(savedKey)
             hint = "nvapi-..."
-            setTextColor(Color.BLACK)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
         }
 
         AlertDialog.Builder(this)
@@ -309,37 +275,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .show()
     }
 
-    private fun showFallbackSettingDialog() {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val isAutoFallbackEnabled = prefs.getBoolean(KEY_AUTO_FALLBACK, true)
-
-        val options = arrayOf(
-            "API 오류 발생 시 지정한 로컬 AI로 자동 전환",
-            "자동 전환 안 함 (오류 메시지만 표시)"
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("API 오류 발생 시 처리 설정")
-            .setSingleChoiceItems(options, if (isAutoFallbackEnabled) 0 else 1) { dialog, which ->
-                prefs.edit().putBoolean(KEY_AUTO_FALLBACK, which == 0).apply()
-                dialog.dismiss()
-            }
-            .setNegativeButton("취소", null)
-            .show()
-    }
-
     private fun callNvidiaApiStreaming(prompt: String) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiKey = prefs.getString(KEY_API_KEY, "") ?: ""
         val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "google/gemma-4-31b-it") ?: "google/gemma-4-31b-it"
-        val isAutoFallbackEnabled = prefs.getBoolean(KEY_AUTO_FALLBACK, true)
 
         if (apiKey.isEmpty()) {
-            if (isAutoFallbackEnabled) {
-                runLocalAiFallback(prompt, "API 키가 미설정되어 로컬 AI로 자동 전환합니다.")
-            } else {
-                tvResponse.text = "오류: API Key가 설정되지 않았습니다."
-            }
+            runLocalAiFallback(prompt, "API 키가 미설정되어 로컬 AI로 자동 전환합니다.")
             return
         }
 
@@ -359,7 +301,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("content", "너는 한국어 AI 비서 NOAH이다. 답변을 작성할 때 특수문자나 별표, 이모지를 쓰지 말고 순수한 텍스트만 말하듯이 자연스럽게 작성하라.")
+                        put("content", "너는 한국어 AI 비서 NOAH이다. '*'와 같은 강조를 위한 문자와 특수문자나 이모티콘 없이 대화하듯이 자연스럽게 텍스트로만 답변하라.")
                     })
                     for ((user, assistant) in chatHistory.takeLast(10)) {
                         put(JSONObject().apply { put("role", "user"); put("content", user) })
@@ -412,28 +354,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     val finalAnswer = fullResponse.toString()
                     chatHistory.add(Pair(prompt, finalAnswer))
 
-                    // 답변 출력이 끝나면 음성으로 읽기 실행 (티키타카 지원)
                     withContext(Dispatchers.Main) {
                         speakText(finalAnswer)
                     }
 
                 } else {
                     withContext(Dispatchers.Main) {
-                        if (isAutoFallbackEnabled) {
-                            runLocalAiFallback(prompt, "온라인 서버 오류로 로컬 AI로 전환합니다.")
-                        } else {
-                            tvResponse.text = "API 오류가 발생했습니다."
-                        }
+                        runLocalAiFallback(prompt, "온라인 서버 오류로 로컬 AI로 전환합니다.")
                     }
                 }
 
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    if (isAutoFallbackEnabled) {
-                        runLocalAiFallback(prompt, "네트워크 끊김으로 로컬 AI로 전환합니다.")
-                    } else {
-                        tvResponse.text = "네트워크 연결 오류가 발생했습니다."
-                    }
+                    runLocalAiFallback(prompt, "네트워크 연결 끊김으로 로컬 AI로 전환합니다.")
                 }
             }
         }
@@ -445,11 +378,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         Toast.makeText(this, reason, Toast.LENGTH_SHORT).show()
 
-        val responseText = "지정된 로컬 AI 모델 $localFileName 입니다. 말씀하신 질문에 대해 답변을 드립니다."
+        val responseText = "지정된 로컬 AI 모델($localFileName)입니다. 오프라인 모드로 질문에 대해 답변을 드립니다."
         tvResponse.text = responseText
         chatHistory.add(Pair(prompt, responseText))
 
-        // 로컬 AI 응답도 음성으로 낭독
         speakText(responseText)
     }
 
