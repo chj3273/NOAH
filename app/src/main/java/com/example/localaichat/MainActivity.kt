@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 상단 최상단 시스템 상태바(Status Bar) 보라색 제거 및 무채색(#1A1A1A) 적용
+        // 최상단 상태바(Status Bar) 배경색 통일 (#1A1A1A)
         window.statusBarColor = Color.parseColor("#1A1A1A")
 
         tvModelName = findViewById(R.id.tvModelName)
@@ -129,7 +129,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    // 안드로이드 기본 테마의 보라색 Tint 제거 및 무채색 둥근 스타일 적용
     private fun applyCustomComponentStyles() {
         val allButtons = listOf(btnSetApiKey, btnSelectLocalFile, btnSelectModel, btnResetChat, btnVoice, btnSend)
         allButtons.forEach { it.backgroundTintList = null }
@@ -295,14 +294,26 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun showApiKeyDialog() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(60, 20, 60, 0)
+        }
+
         val input = EditText(this).apply {
             setText(prefs.getString(KEY_API_KEY, ""))
             hint = "nvapi-..."
-            setTextColor(Color.WHITE)
+            setTextColor(Color.parseColor("#FFFFFF"))       // 흰색 글씨
+            setHintTextColor(Color.parseColor("#888888"))   // 연회색 힌트
+            background = createRoundedDrawable("#2E2E2E", 8f) // 어두운 바탕 지정
+            setPadding(32, 24, 32, 24)
         }
+
+        container.addView(input)
+
         AlertDialog.Builder(this)
             .setTitle("NVIDIA API Key")
-            .setView(input)
+            .setView(container)
             .setPositiveButton("저장") { _, _ ->
                 prefs.edit().putString(KEY_API_KEY, input.text.toString().trim()).apply()
                 Toast.makeText(this, "API Key 저장 완료", Toast.LENGTH_SHORT).show()
