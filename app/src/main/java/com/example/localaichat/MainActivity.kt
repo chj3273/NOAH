@@ -13,10 +13,11 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.Gravity
+import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,9 +26,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,13 +41,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var tvModelName: TextView
     private lateinit var etInput: EditText
-    private lateinit var btnSend: MaterialButton
-    private lateinit var btnSetApiKey: MaterialButton
-    private lateinit var btnSelectLocalFile: MaterialButton
-    private lateinit var btnSelectModel: MaterialButton
-    private lateinit var btnResetChat: MaterialButton
-    private lateinit var btnVoice: MaterialButton
-    private lateinit var rvChat: RecyclerView
+    private lateinit var btnSend: Button
+    private lateinit var btnSetApiKey: Button
+    private lateinit var btnSelectLocalFile: Button
+    private lateinit var btnSelectModel: Button
+    private lateinit var btnResetChat: Button
+    private lateinit var btnVoice: Button
+    private lateinit var scrollView: ScrollView
+    private lateinit var chatLayout: LinearLayout
 
     private val PREFS_NAME = "NOAH_PREFS"
     private val KEY_SELECTED_MODEL = "SELECTED_MODEL_ID"
@@ -58,8 +57,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val KEY_LOCAL_MODEL_NAME = "LOCAL_MODEL_FILE_NAME"
     private val KEY_IS_LOCAL_MODE = "IS_LOCAL_AI_MODE"
 
-    private val messageList = mutableListOf<ChatMessage>()
-    private lateinit var chatAdapter: ChatAdapter
+    private val messageHistory = mutableListOf<Pair<String, Boolean>>()
 
     private var isLocalAiMode = false
     private lateinit var speechRecognizer: SpeechRecognizer
@@ -97,18 +95,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         btnSelectModel = findViewById(R.id.btnSelectModel)
         btnResetChat = findViewById(R.id.btnResetChat)
         btnVoice = findViewById(R.id.btnVoice)
-        rvChat = findViewById(R.id.rvChat)
+        scrollView = findViewById(R.id.scrollView)
+        chatLayout = findViewById(R.id.chatLayout)
 
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isLocalAiMode = prefs.getBoolean(KEY_IS_LOCAL_MODE, false)
 
-        chatAdapter = ChatAdapter(messageList)
-        rvChat.layoutManager = LinearLayoutManager(this)
-        rvChat.adapter = chatAdapter
-
-        messageList.add(ChatMessage("안녕하세요. NOAH AI입니다. 질문을 입력하거나 음성 대화를 사용해 보세요.", false))
-        chatAdapter.notifyItemInserted(0)
-
+        addMessageView("안녕하세요. NOAH AI입니다. 질문을 입력하거나 음성 대화를 사용해 보세요.", false)
         updateModelDisplay()
 
         tts = TextToSpeech(this, this)
@@ -121,11 +114,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         btnResetChat.setOnClickListener { resetChatHistory() }
 
         btnVoice.setOnClickListener {
-            if (isTikiTakaActive) {
-                stopTikiTakaMode()
-            } else {
-                startTikiTakaMode()
-            }
+            if (isTikiTakaActive) stopTikiTakaMode() else startTikiTakaMode()
         }
 
         btnSend.setOnClickListener {
@@ -135,10 +124,40 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun resetChatHistory() {
-        messageList.clear()
-        messageList.add(ChatMessage("대화 내역이 초기화되었습니다. 무엇을 도와드릴까요?", false))
-        chatAdapter.notifyDataSetChanged()
+        chatLayout.removeAllViews()
+        messageHistory.clear()
+        addMessageView("대화 내역이 초기화되었습니다. 무엇을 도와드릴까요?", false)
         Toast.makeText(this, "채팅 초기화 완료", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun addMessageView(text: String, isUser: Boolean): TextView {
+        messageHistory.add(Pair(text, isUser))
+
+        val tv = TextView(this).apply {
+            this.text = text
+            setPadding(36, 24, 36, 24)
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            maxWidth = 850
+        }
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(16, 12, 16, 12)
+            if (isUser) {
+                gravity = Gravity.END
+                setBackgroundColor(Color.parseColor("#007AFF"))
+            } else {
+                gravity = Gravity.START
+                setBackgroundColor(Color.parseColor("#333333"))
+            }
+        }
+        tv.layoutParams = params
+        chatLayout.addView(tv)
+        scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+        return tv
     }
 
     override fun onInit(status: Int) {
@@ -173,8 +192,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
-                    val recognizedText = matches[0]
-                    processUserPrompt(recognizedText)
+                    processUserPrompt(matches[0])
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {}
@@ -218,21 +236,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun processUserPrompt(prompt: String) {
         if (prompt.isEmpty()) return
-
         etInput.setText("")
 
-        messageList.add(ChatMessage(prompt, true))
-        chatAdapter.notifyItemInserted(messageList.size - 1)
-
-        messageList.add(ChatMessage("생성 중...", false))
-        val aiIndex = messageList.size - 1
-        chatAdapter.notifyItemInserted(aiIndex)
-        rvChat.scrollToPosition(aiIndex)
+        addMessageView(prompt, true)
+        val aiTv = addMessageView("생성 중...", false)
 
         if (isLocalAiMode) {
-            runLocalAiFallback(prompt, aiIndex, "로컬 AI 모드 실행")
+            runLocalAiFallback(prompt, aiTv, "로컬 AI 모드 실행")
         } else {
-            callNvidiaApiStreaming(prompt, aiIndex)
+            callNvidiaApiStreaming(prompt, aiTv)
         }
     }
 
@@ -249,21 +261,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun showApiKeyDialog() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedKey = prefs.getString(KEY_API_KEY, "")
-
         val input = EditText(this).apply {
-            setText(savedKey)
+            setText(prefs.getString(KEY_API_KEY, ""))
             hint = "nvapi-..."
             setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
         }
-
         AlertDialog.Builder(this)
             .setTitle("NVIDIA API Key")
             .setView(input)
             .setPositiveButton("저장") { _, _ ->
-                val apiKey = input.text.toString().trim()
-                prefs.edit().putString(KEY_API_KEY, apiKey).apply()
+                prefs.edit().putString(KEY_API_KEY, input.text.toString().trim()).apply()
                 Toast.makeText(this, "API Key 저장 완료", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("취소", null)
@@ -284,19 +291,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     .putString(KEY_SELECTED_MODEL_NAME, models[which])
                     .putBoolean(KEY_IS_LOCAL_MODE, false)
                     .apply()
-
                 updateModelDisplay()
             }
             .show()
     }
 
-    private fun callNvidiaApiStreaming(prompt: String, aiIndex: Int) {
+    private fun callNvidiaApiStreaming(prompt: String, aiTv: TextView) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiKey = prefs.getString(KEY_API_KEY, "") ?: ""
         val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "google/gemma-4-31b-it") ?: "google/gemma-4-31b-it"
 
         if (apiKey.isEmpty()) {
-            runLocalAiFallback(prompt, aiIndex, "API 키가 없습니다. API Key를 설정해 주세요.")
+            runLocalAiFallback(prompt, aiTv, "API 키가 없습니다. 설정해 주세요.")
             return
         }
 
@@ -318,12 +324,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         put("role", "system")
                         put("content", "너는 한국어 AI 비서 NOAH이다. 특수문자나 이모티콘 없이 자연스러운 텍스트로만 대답하라.")
                     })
-                    val history = messageList.filter { it.message != "생성 중..." }.takeLast(30)
-                    for (msg in history) {
-                        put(JSONObject().apply {
-                            put("role", if (msg.isUser) "user" else "assistant")
-                            put("content", msg.message)
-                        })
+                    val history = messageHistory.takeLast(30)
+                    for ((msg, isUser) in history) {
+                        if (msg != "생성 중...") {
+                            put(JSONObject().apply {
+                                put("role", if (isUser) "user" else "assistant")
+                                put("content", msg)
+                            })
+                        }
                     }
                 }
 
@@ -338,8 +346,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     os.write(jsonParam.toString().toByteArray(Charsets.UTF_8))
                 }
 
-                val responseCode = conn.responseCode
-                if (responseCode == HttpURLConnection.HTTP_OK) {
+                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
                     val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
                     val fullResponse = StringBuilder()
                     var line = reader.readLine()
@@ -354,20 +361,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 val jsonObject = JSONObject(data)
                                 val choices = jsonObject.optJSONArray("choices")
                                 if (choices != null && choices.length() > 0) {
-                                    val delta = choices.getJSONObject(0).optJSONObject("delta")
-                                    val content = delta?.optString("content", "") ?: ""
+                                    val content = choices.getJSONObject(0).optJSONObject("delta")?.optString("content", "") ?: ""
                                     if (content.isNotEmpty()) {
                                         fullResponse.append(content)
                                         withContext(Dispatchers.Main) {
-                                            messageList[aiIndex].message = fullResponse.toString()
-                                            chatAdapter.notifyItemChanged(aiIndex)
-                                            rvChat.scrollToPosition(aiIndex)
+                                            aiTv.text = fullResponse.toString()
+                                            scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
                                         }
                                     }
                                 }
-                            } catch (e: Exception) { 
-                                // JSON 파싱 에러 무시
-                            }
+                            } catch (e: Exception) {}
                         }
                         line = reader.readLine()
                     }
@@ -376,28 +379,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     withContext(Dispatchers.Main) {
                         speakText(finalAnswer)
                     }
-
                 } else {
                     withContext(Dispatchers.Main) {
-                        runLocalAiFallback(prompt, aiIndex, "API 오류 Code: $responseCode")
+                        runLocalAiFallback(prompt, aiTv, "API 오류 Code: ${conn.responseCode}")
                     }
                 }
-
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    runLocalAiFallback(prompt, aiIndex, "네트워크 오류: ${e.localizedMessage}")
+                    runLocalAiFallback(prompt, aiTv, "네트워크 오류: ${e.localizedMessage}")
                 }
             }
         }
     }
 
-    private fun runLocalAiFallback(prompt: String, aiIndex: Int, reason: String) {
+    private fun runLocalAiFallback(prompt: String, aiTv: TextView, reason: String) {
         Toast.makeText(this, reason, Toast.LENGTH_LONG).show()
-
         val responseText = "로컬 AI 모드 답변입니다. ($reason)"
-        messageList[aiIndex].message = responseText
-        chatAdapter.notifyItemChanged(aiIndex)
-
+        aiTv.text = responseText
         speakText(responseText)
     }
 
@@ -425,55 +423,5 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             tts.stop()
             tts.shutdown()
         }
-    }
-}
-
-// -------------------------------------------------------------
-// 파일 추가 없이 MainActivity 내부에 선언된 어댑터 및 데이터 클래스
-// -------------------------------------------------------------
-data class ChatMessage(
-    var message: String,
-    val isUser: Boolean
-)
-
-class ChatAdapter(private val messages: List<ChatMessage>) :
-    RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-
-    private val TYPE_USER = 1
-    private val TYPE_AI = 2
-
-    override fun getItemViewType(position: Int): Int {
-        return if (messages[position].isUser) TYPE_USER else TYPE_AI
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return if (viewType == TYPE_USER) {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_chat_user, parent, false)
-            UserViewHolder(view)
-        } else {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_chat_ai, parent, false)
-            AiViewHolder(view)
-        }
-    }
-
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val chatMessage = messages[position]
-        if (holder is UserViewHolder) {
-            holder.tvMessage.text = chatMessage.message
-        } else if (holder is AiViewHolder) {
-            holder.tvMessage.text = chatMessage.message
-        }
-    }
-
-    override fun getItemCount(): Int = messages.size
-
-    class UserViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvMessage: TextView = itemView.findViewById(R.id.tvUserMessage)
-    }
-
-    class AiViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvMessage: TextView = itemView.findViewById(R.id.tvAiMessage)
     }
 }
