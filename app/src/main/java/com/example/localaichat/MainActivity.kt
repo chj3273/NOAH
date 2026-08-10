@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -99,6 +99,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         scrollView = findViewById(R.id.scrollView)
         chatLayout = findViewById(R.id.chatLayout)
 
+        applyCustomComponentStyles()
+
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isLocalAiMode = prefs.getBoolean(KEY_IS_LOCAL_MODE, false)
 
@@ -124,6 +126,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    // 둥근 무채색 버튼 및 컴포넌트 배경 설정
+    private fun applyCustomComponentStyles() {
+        etInput.background = createRoundedDrawable("#2E2E2E", 10f)
+        btnSend.background = createRoundedDrawable("#444444", 10f)
+        btnVoice.background = createRoundedDrawable("#333333", 10f)
+
+        val menuButtonBg = createRoundedDrawable("#333333", 8f)
+        btnSetApiKey.background = menuButtonBg
+        btnSelectLocalFile.background = menuButtonBg
+        btnSelectModel.background = menuButtonBg
+        btnResetChat.background = createRoundedDrawable("#262626", 8f)
+    }
+
+    private fun createRoundedDrawable(colorHex: String, cornerRadiusDp: Float): GradientDrawable {
+        val density = resources.displayMetrics.density
+        return GradientDrawable().apply {
+            setColor(Color.parseColor(colorHex))
+            cornerRadius = cornerRadiusDp * density
+        }
+    }
+
     private fun resetChatHistory() {
         chatLayout.removeAllViews()
         messageHistory.clear()
@@ -136,17 +159,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         val tv = TextView(this).apply {
             this.text = text
-            setPadding(36, 24, 36, 24)
-            textSize = 15f
+            setPadding(40, 26, 40, 26)
+            textSize = 14.5f
             maxWidth = 850
             if (isUser) {
-                // 사용자 메시지: 밝은 무채색 (밝은 회색) 배경 + 검은색 글씨로 시인성 확보
-                setTextColor(Color.BLACK)
-                background = ColorDrawable(Color.parseColor("#E0E0E0"))
+                // 사용자 말풍선: 어두운 무채색 숯색 배경 (#383838) + 흰색 글씨 (#FFFFFF)
+                setTextColor(Color.parseColor("#FFFFFF"))
+                background = createRoundedDrawable("#383838", 16f)
             } else {
-                // AI 메시지: 어두운 무채색 (짙은 회색) 배경 + 흰색 글씨
-                setTextColor(Color.WHITE)
-                background = ColorDrawable(Color.parseColor("#2E2E2E"))
+                // AI 말풍선: 더 어두운 다크 그레이 배경 (#222222) + 밝은 회색 글씨 (#E5E5E5)
+                setTextColor(Color.parseColor("#E5E5E5"))
+                background = createRoundedDrawable("#222222", 16f)
             }
         }
 
@@ -154,7 +177,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply {
-            setMargins(16, 12, 16, 12)
+            setMargins(8, 10, 8, 10)
             gravity = if (isUser) Gravity.END else Gravity.START
         }
         tv.layoutParams = params
@@ -206,15 +229,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun startTikiTakaMode() {
         isTikiTakaActive = true
         btnVoice.text = "중지"
-        // 활성화 상태도 원색(빨간색 등) 대신 뚜렷한 무채색(중간 회색)으로 통일
-        btnVoice.setBackgroundColor(Color.parseColor("#666666"))
+        btnVoice.background = createRoundedDrawable("#606060", 10f)
+        btnVoice.setTextColor(Color.WHITE)
         startListening()
     }
 
     private fun stopTikiTakaMode() {
         isTikiTakaActive = false
         btnVoice.text = "음성"
-        btnVoice.setBackgroundColor(Color.parseColor("#333333"))
+        btnVoice.background = createRoundedDrawable("#333333", 10f)
+        btnVoice.setTextColor(Color.WHITE)
         speechRecognizer.stopListening()
         if (tts.isSpeaking) tts.stop()
     }
