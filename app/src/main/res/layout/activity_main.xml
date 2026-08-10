@@ -9,22 +9,65 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:padding="8dp"
-        android:gravity="center_vertical">
+        android:background="#1A1A1A">
+
         <TextView
             android:id="@+id/tvModelName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="NOAH AI"
+            android:text="Model"
             android:textColor="#FFFFFF"
-            android:textSize="14sp"
+            android:textSize="12sp"
+            android:maxLines="1"
             android:ellipsize="end"
-            android:maxLines="1"/>
-        <Button android:id="@+id/btnSetApiKey" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="키" android:textSize="12sp"/>
-        <Button android:id="@+id/btnSelectModel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="모델" android:textSize="12sp"/>
-        <Button android:id="@+id/btnSelectLocalFile" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="로컬" android:textSize="12sp"/>
-        <Button android:id="@+id/btnResetChat" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="초기화" android:textSize="12sp"/>
+            android:paddingStart="4dp"/>
+
+        <Button
+            android:id="@+id/btnSetApiKey"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="키"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"
+            android:paddingHorizontal="8dp"/>
+
+        <Button
+            android:id="@+id/btnSelectLocalFile"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="로컬"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"
+            android:paddingHorizontal="8dp"/>
+
+        <Button
+            android:id="@+id/btnSelectModel"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="모델"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"
+            android:paddingHorizontal="8dp"/>
+
+        <Button
+            android:id="@+id/btnResetChat"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="초기화"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"
+            android:paddingHorizontal="8dp"/>
     </LinearLayout>
 
     <ScrollView
@@ -33,41 +76,55 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:fillViewport="true"
-        android:padding="12dp">
+        android:background="#121212">
 
         <LinearLayout
             android:id="@+id/chatLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:padding="12dp"/>
     </ScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:background="#1A1A1A"
+        android:gravity="center_vertical">
 
         <EditText
             android:id="@+id/etInput"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="메시지를 입력하세요..."
+            android:layout_marginEnd="8dp"
+            android:hint="메시지를 입력하세요"
             android:textColor="#FFFFFF"
-            android:textColorHint="#888888"
-            android:textSize="15sp"/>
+            android:textColorHint="#777777"
+            android:background="#2E2E2E"
+            android:padding="12dp"
+            android:textSize="14sp"/>
 
         <Button
             android:id="@+id/btnVoice"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="음성"/>
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:text="음성"
+            android:textSize="13sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"/>
 
         <Button
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="전송"/>
+            android:layout_height="40dp"
+            android:text="전송"
+            android:textSize="13sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#444444"/>
     </LinearLayout>
+
 </LinearLayout>
