@@ -22,7 +22,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="온라인 모델" />
+            android:text="AI 모델" />
 
         <Button
             android:id="@+id/btnLocalAi"
@@ -90,7 +90,7 @@
             android:id="@+id/btnVoice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🎙️ 티키타카" />
+            android:text="음성 모드" />
 
         <Button
             android:id="@+id/btnSend"
