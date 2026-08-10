@@ -1,6 +1,7 @@
 package com.example.localaichat
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -161,64 +162,98 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         } else {
             btnVoiceMode.text = "연속 음성: OFF"
             btnVoiceMode.setBackgroundColor(Color.parseColor("#2A2A2A"))
-            speechRecognizer?.stopListening()
-            speechRecognizer?.destroy()
-            speechRecognizer = null
+            stopSpeechRecognizer()
             textToSpeech?.stop()
             Toast.makeText(this, "연속 음성 대화가 종료되었습니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 안드로이드 11(One UI 3.1) 호환 SpeechRecognizer 생성기
+    private fun createSpeechRecognizerInstance(): SpeechRecognizer {
+        val googleComponent = ComponentName(
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.voicesearch.service.SpeechRecognitionService"
+        )
+
+        val intent = Intent("android.speech.RecognitionService").apply {
+            component = googleComponent
+        }
+        val services = packageManager.queryIntentServices(intent, 0)
+
+        return if (services.isNotEmpty()) {
+            // 삼성 음성 입력(SMT) 먹통 현상 방지를 위해 구글 음성 인식 서비스 지정
+            SpeechRecognizer.createSpeechRecognizer(this, googleComponent)
+        } else {
+            SpeechRecognizer.createSpeechRecognizer(this)
         }
     }
 
     private fun startSpeechRecognition() {
         if (!isVoiceModeActive) return
 
-        // 안드로이드 11 음성 인식 지원 여부 체크
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "기기에서 음성 인식을 지원하지 않거나 활성화되지 않았습니다.", Toast.LENGTH_SHORT).show()
-            isVoiceModeActive = false
-            btnVoiceMode.text = "연속 음성: OFF"
-            btnVoiceMode.setBackgroundColor(Color.parseColor("#2A2A2A"))
-            return
-        }
+        // 이전 음성 인식 객체 리셋
+        stopSpeechRecognizer()
 
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-            speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {}
-                override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {}
+        try {
+            speechRecognizer = createSpeechRecognizerInstance().apply {
+                setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {}
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {}
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
 
-                override fun onError(error: Int) {
-                    if (isVoiceModeActive) {
-                        Handler(Looper.getMainLooper()).postDelayed({
+                    override fun onError(error: Int) {
+                        // 안드로이드 11에서 무응답/타임아웃 발생 시 안전하게 재시도
+                        if (isVoiceModeActive) {
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                startSpeechRecognition()
+                            }, 800)
+                        }
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            val spokenText = matches[0]
+                            processUserMessage(spokenText)
+                        } else if (isVoiceModeActive) {
                             startSpeechRecognition()
-                        }, 1000)
+                        }
                     }
-                }
 
-                override fun onResults(results: Bundle?) {
-                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    if (!matches.isNullOrEmpty()) {
-                        val spokenText = matches[0]
-                        processUserMessage(spokenText)
-                    } else if (isVoiceModeActive) {
-                        startSpeechRecognition()
-                    }
-                }
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
 
-                override fun onPartialResults(partialResults: Bundle?) {}
-                override fun onEvent(eventType: Int, params: Bundle?) {}
-            })
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
+                // 안드로이드 11(One UI 3.1) 필수: 호출 패키지 명시
+                putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            }
+
+            speechRecognizer?.startListening(intent)
+
+        } catch (e: Exception) {
+            if (isVoiceModeActive) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    startSpeechRecognition()
+                }, 1000)
+            }
         }
+    }
 
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
+    private fun stopSpeechRecognizer() {
+        try {
+            speechRecognizer?.stopListening()
+            speechRecognizer?.destroy()
+            speechRecognizer = null
+        } catch (e: Exception) {
+            speechRecognizer = null
         }
-
-        speechRecognizer?.startListening(intent)
     }
 
     private fun processUserMessage(prompt: String) {
@@ -285,7 +320,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "NOAH_AI_RESPONSE")
     }
 
-    // API Key 입력 다이얼로그 (배경 다크 테마 + 선명한 흰색 글씨 수정)
     private fun showApiKeyDialog() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedKey = prefs.getString(KEY_API_KEY, "")
@@ -485,7 +519,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onDestroy() {
         textToSpeech?.stop()
         textToSpeech?.shutdown()
-        speechRecognizer?.destroy()
+        stopSpeechRecognizer()
         super.onDestroy()
     }
 }
