@@ -35,6 +35,13 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force("androidx.core:core-ktx:1.12.0")
+        force("androidx.core:core:1.12.0")
+    }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
@@ -42,4 +49,5 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.8.2")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 }
