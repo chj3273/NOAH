@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {}
                     override fun onDone(utteranceId: String?) {
-                        if (isTikiTakaActive) {
+                        if (isTikiTakaActive && utteranceId == "NOAH_FINAL_UTTERANCE") {
                             runOnUiThread { startListening() }
                         }
                     }
@@ -228,19 +228,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         speechRecognizer.startListening(intent)
     }
 
-    private fun speakText(text: String) {
-        if (isTtsReady) {
-            val cleanText = text.replace(Regex("[*#_~]"), "")
-            tts.speak(cleanText, TextToSpeech.QUEUE_FLUSH, null, "NOAH_UTTERANCE_ID")
-        }
-    }
-
     private fun processUserPrompt(prompt: String) {
         if (prompt.isEmpty()) return
         etInput.setText("")
 
+        if (tts.isSpeaking) tts.stop()
+
         addMessageView(prompt, true)
-        val aiTv = addMessageView("생성 중...", false)
+        val aiTv = addMessageView("생각 중...", false)
 
         callNvidiaApiStreaming(prompt, aiTv)
     }
@@ -326,7 +321,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         put("role", "system")
                         put("content", "너는 한국어 AI 비서 NOAH이다. 특수문자나 이모티콘 없이 자연스러운 텍스트로만 대답하라.")
                     })
-                    val history = messageHistory.takeLast(30)
+                    val history = messageHistory.takeLast(15)
                     for ((msg, isUser) in history) {
                         if (msg != "생성 중...") {
                             put(JSONObject().apply {
@@ -341,6 +336,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     put("model", selectedModel)
                     put("messages", messagesArray)
                     put("temperature", 0.7)
+                    put("max_tokens", 1024)
                     put("stream", true)
                 }
 
@@ -352,8 +348,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
                     val fullResponse = StringBuilder()
                     var line = reader.readLine()
-                  
+
                     var isFirstToken = true
+                    var lastSpokenIndex = 0
+                    val punctuationSet = setOf('.', '?', '!', '\n')
+
+                    if (isTtsReady) {
+                        tts.speak("", TextToSpeech.QUEUE_FLUSH, null, "NOAH_FLUSH")
+                    }
 
                     while (line != null) {
                         val currentLine = line
@@ -383,6 +385,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                                 aiTv.text = fullResponse.toString()
                                                 scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
                                             }
+
+                                            if (isTtsReady) {
+                                                val currentText = fullResponse.toString()
+                                                var i = lastSpokenIndex
+                                                while (i < currentText.length) {
+                                                    if (punctuationSet.contains(currentText[i])) {
+                                                        val sentence = currentText.substring(lastSpokenIndex, i + 1).trim()
+                                                        if (sentence.isNotEmpty() && sentence != "." && sentence != "?" && sentence != "!") {
+                                                            val cleanSentence = sentence.replace(Regex("[*#_~]"), "")
+                                                            val utteranceId = if (i >= currentText.length - 5) "NOAH_FINAL_UTTERANCE" else "NOAH_PART_${i}"
+                                                            tts.speak(cleanSentence, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                                                        }
+                                                        lastSpokenIndex = i + 1
+                                                    }
+                                                    i++
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -391,9 +410,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         line = reader.readLine()
                     }
 
-                    val finalAnswer = fullResponse.toString()
-                    withContext(Dispatchers.Main) {
-                        speakText(finalAnswer)
+                    if (isTtsReady && lastSpokenIndex < fullResponse.length) {
+                        val remaining = fullResponse.substring(lastSpokenIndex).trim()
+                        if (remaining.isNotEmpty()) {
+                            val cleanRemaining = remaining.replace(Regex("[*#_~]"), "")
+                            tts.speak(cleanRemaining, TextToSpeech.QUEUE_ADD, null, "NOAH_FINAL_UTTERANCE")
+                        }
                     }
                 } else {
                     val errorStream = conn.errorStream
