@@ -9,21 +9,20 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
-        <package android:name="com.google.android.googlequicksearchbox" />
     </queries>
 
     <application
+        android:largeHeap="true"
         android:allowBackup="true"
         android:label="NOAH AI"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
