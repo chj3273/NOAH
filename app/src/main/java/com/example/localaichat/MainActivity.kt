@@ -88,6 +88,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // 상단 최상단 시스템 상태바(Status Bar) 보라색 제거 및 무채색(#1A1A1A) 적용
+        window.statusBarColor = Color.parseColor("#1A1A1A")
+
         tvModelName = findViewById(R.id.tvModelName)
         etInput = findViewById(R.id.etInput)
         btnSend = findViewById(R.id.btnSend)
@@ -126,8 +129,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    // 둥근 무채색 버튼 및 컴포넌트 배경 설정
+    // 안드로이드 기본 테마의 보라색 Tint 제거 및 무채색 둥근 스타일 적용
     private fun applyCustomComponentStyles() {
+        val allButtons = listOf(btnSetApiKey, btnSelectLocalFile, btnSelectModel, btnResetChat, btnVoice, btnSend)
+        allButtons.forEach { it.backgroundTintList = null }
+
         etInput.background = createRoundedDrawable("#2E2E2E", 10f)
         btnSend.background = createRoundedDrawable("#444444", 10f)
         btnVoice.background = createRoundedDrawable("#333333", 10f)
@@ -163,11 +169,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             textSize = 14.5f
             maxWidth = 850
             if (isUser) {
-                // 사용자 말풍선: 어두운 무채색 숯색 배경 (#383838) + 흰색 글씨 (#FFFFFF)
                 setTextColor(Color.parseColor("#FFFFFF"))
                 background = createRoundedDrawable("#383838", 16f)
             } else {
-                // AI 말풍선: 더 어두운 다크 그레이 배경 (#222222) + 밝은 회색 글씨 (#E5E5E5)
                 setTextColor(Color.parseColor("#E5E5E5"))
                 background = createRoundedDrawable("#222222", 16f)
             }
@@ -229,6 +233,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun startTikiTakaMode() {
         isTikiTakaActive = true
         btnVoice.text = "중지"
+        btnVoice.backgroundTintList = null
         btnVoice.background = createRoundedDrawable("#606060", 10f)
         btnVoice.setTextColor(Color.WHITE)
         startListening()
@@ -237,6 +242,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun stopTikiTakaMode() {
         isTikiTakaActive = false
         btnVoice.text = "음성"
+        btnVoice.backgroundTintList = null
         btnVoice.background = createRoundedDrawable("#333333", 10f)
         btnVoice.setTextColor(Color.WHITE)
         speechRecognizer.stopListening()
