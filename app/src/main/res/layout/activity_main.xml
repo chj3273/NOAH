@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -9,155 +8,111 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#1A1A1A"
-        android:paddingTop="12dp"
-        android:paddingBottom="10dp"
-        android:paddingHorizontal="12dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="#1A1A1A">
 
         <TextView
             android:id="@+id/tvModelName"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Model"
             android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold"
+            android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end"
-            android:paddingBottom="8dp"/>
+            android:paddingStart="4dp"/>
 
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none">
+        <Button
+            android:id="@+id/btnSetApiKey"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="키"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"
+            android:paddingHorizontal="8dp"/>
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnSelectModel"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="AI 모델"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#333333"
+            android:paddingHorizontal="8dp"/>
 
-                <Button
-                    android:id="@+id/btnSetApiKey"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="6dp"
-                    android:text="API"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#333333"
-                    app:backgroundTint="@null"
-                    android:paddingHorizontal="12dp"/>
-
-                <Button
-                    android:id="@+id/btnSelectLocalFile"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="6dp"
-                    android:text="로컬 AI"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#333333"
-                    app:backgroundTint="@null"
-                    android:paddingHorizontal="12dp"/>
-
-                <Button
-                    android:id="@+id/btnSelectModel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="6dp"
-                    android:text="AI 모델"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#333333"
-                    app:backgroundTint="@null"
-                    android:paddingHorizontal="12dp"/>
-
-                <Button
-                    android:id="@+id/btnResetChat"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:text="초기화"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#262626"
-                    app:backgroundTint="@null"
-                    android:paddingHorizontal="12dp"/>
-            </LinearLayout>
-        </HorizontalScrollView>
+        <Button
+            android:id="@+id/btnResetChat"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginHorizontal="4dp"
+            android:text="초기화"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#262626"
+            android:paddingHorizontal="8dp"/>
     </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#2A2A2A"/>
 
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fillViewport="true"
-        android:background="#121212">
+        android:fillViewport="true">
 
         <LinearLayout
             android:id="@+id/chatLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="16dp"/>
+            android:padding="12dp"/>
     </ScrollView>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#2A2A2A"/>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="12dp"
+        android:padding="8dp"
         android:background="#1A1A1A"
         android:gravity="center_vertical">
 
         <EditText
             android:id="@+id/etInput"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:hint="메시지를 입력하세요..."
+            android:hint="메시지를 입력하세요"
             android:textColor="#FFFFFF"
-            android:textColorHint="#888888"
-            android:textSize="14sp"
-            android:paddingHorizontal="14dp"
-            android:background="#2E2E2E"/>
+            android:textColorHint="#777777"
+            android:background="#2E2E2E"
+            android:padding="12dp"
+            android:textSize="14sp"/>
 
         <Button
             android:id="@+id/btnVoice"
             android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:layout_marginEnd="6dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
             android:text="음성"
             android:textSize="13sp"
             android:textColor="#FFFFFF"
-            android:backgroundTint="#333333"
-            app:backgroundTint="@null"
-            android:paddingHorizontal="12dp"/>
+            android:backgroundTint="#333333"/>
 
         <Button
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
-            android:layout_height="44dp"
+            android:layout_height="40dp"
             android:text="전송"
             android:textSize="13sp"
-            android:textStyle="bold"
             android:textColor="#FFFFFF"
-            android:backgroundTint="#444444"
-            app:backgroundTint="@null"
-            android:paddingHorizontal="16dp"/>
+            android:backgroundTint="#444444"/>
     </LinearLayout>
 
 </LinearLayout>
