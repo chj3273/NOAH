@@ -13,6 +13,9 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -96,7 +99,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         btnVoice = findViewById(R.id.btnVoice)
         rvChat = findViewById(R.id.rvChat)
 
-        // 앱 시작 시 이전 설정 불러오기
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isLocalAiMode = prefs.getBoolean(KEY_IS_LOCAL_MODE, false)
 
@@ -104,7 +106,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         rvChat.layoutManager = LinearLayoutManager(this)
         rvChat.adapter = chatAdapter
 
-        // 초기 안내 메시지
         messageList.add(ChatMessage("안녕하세요. NOAH AI입니다. 질문을 입력하거나 음성 대화를 사용해 보세요.", false))
         chatAdapter.notifyItemInserted(0)
 
@@ -220,11 +221,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         etInput.setText("")
 
-        // 1. 유저 메시지 추가
         messageList.add(ChatMessage(prompt, true))
         chatAdapter.notifyItemInserted(messageList.size - 1)
 
-        // 2. AI 대기 메시지 추가
         messageList.add(ChatMessage("생성 중...", false))
         val aiIndex = messageList.size - 1
         chatAdapter.notifyItemInserted(aiIndex)
@@ -309,7 +308,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     setRequestProperty("Authorization", "Bearer $apiKey")
                     setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Accept", "text/event-stream")
-                    connectTimeout = 60000 // 타임아웃 1분으로 연장
+                    connectTimeout = 60000
                     readTimeout = 60000
                     doOutput = true
                 }
@@ -317,9 +316,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("content", "너는 한국어 AI 비서 NOAH이다. '*'과 같이 텍스트를 강조하기 위한 문자나 특수문자나 이모티콘 없이 자연스러운 텍스트로만 대답하라.")
+                        put("content", "너는 한국어 AI 비서 NOAH이다. 특수문자나 이모티콘 없이 자연스러운 텍스트로만 대답하라.")
                     })
-                    // 대화 내역 최근 30개 전달 (문맥 유지력 향상)
                     val history = messageList.filter { it.message != "생성 중..." }.takeLast(30)
                     for (msg in history) {
                         put(JSONObject().apply {
@@ -343,11 +341,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val responseCode = conn.responseCode
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
-                    var line: String?
                     val fullResponse = StringBuilder()
+                    var line = reader.readLine()
 
-                    while (reader.readLine().also { line = it } != null) {
-                        val currentLine = line ?: continue
+                    while (line != null) {
+                        val currentLine = line
                         if (currentLine.startsWith("data: ")) {
                             val data = currentLine.removePrefix("data: ").trim()
                             if (data == "[DONE]") break
@@ -367,8 +365,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                         }
                                     }
                                 }
-                            } catch (e: Exception) { continue }
+                            } catch (e: Exception) { 
+                                // JSON 파싱 에러 무시
+                            }
                         }
+                        line = reader.readLine()
                     }
 
                     val finalAnswer = fullResponse.toString()
@@ -424,5 +425,55 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             tts.stop()
             tts.shutdown()
         }
+    }
+}
+
+// -------------------------------------------------------------
+// 파일 추가 없이 MainActivity 내부에 선언된 어댑터 및 데이터 클래스
+// -------------------------------------------------------------
+data class ChatMessage(
+    var message: String,
+    val isUser: Boolean
+)
+
+class ChatAdapter(private val messages: List<ChatMessage>) :
+    RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private val TYPE_USER = 1
+    private val TYPE_AI = 2
+
+    override fun getItemViewType(position: Int): Int {
+        return if (messages[position].isUser) TYPE_USER else TYPE_AI
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == TYPE_USER) {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_chat_user, parent, false)
+            UserViewHolder(view)
+        } else {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_chat_ai, parent, false)
+            AiViewHolder(view)
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val chatMessage = messages[position]
+        if (holder is UserViewHolder) {
+            holder.tvMessage.text = chatMessage.message
+        } else if (holder is AiViewHolder) {
+            holder.tvMessage.text = chatMessage.message
+        }
+    }
+
+    override fun getItemCount(): Int = messages.size
+
+    class UserViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvMessage: TextView = itemView.findViewById(R.id.tvUserMessage)
+    }
+
+    class AiViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvMessage: TextView = itemView.findViewById(R.id.tvAiMessage)
     }
 }
