@@ -319,9 +319,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("content", "너는 한국어 AI 비서 NOAH이다. 특수문자나 이모티콘 없이 구어체의 자연스러운 텍스트로만 대답하라.")
+                        put("content", "너는 한국어 AI 비서 NOAH이다. 특수문자나 이모티콘 없이 자연스러운 구어체 형식의 텍스트로만 답변하라.")
                     })
-                    val history = messageHistory.takeLast(40)
+                    val history = messageHistory.takeLast(25)
                     for ((msg, isUser) in history) {
                         if (msg != "생성 중...") {
                             put(JSONObject().apply {
