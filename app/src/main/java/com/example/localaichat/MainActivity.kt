@@ -321,7 +321,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         put("role", "system")
                         put("content", "너는 한국어 AI 비서 NOAH이다. 특수문자나 이모티콘 없이 자연스러운 텍스트로만 대답하라.")
                     })
-                    val history = messageHistory.takeLast(15)
+                    val history = messageHistory.takeLast(40)
                     for ((msg, isUser) in history) {
                         if (msg != "생성 중...") {
                             put(JSONObject().apply {
