@@ -282,8 +282,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun showModelSelectionDialog() {
-        val models = arrayOf("Nemotron 3 120B A12B", "llama 3.3 70B", "llama 3.3 N 49B", "Gemma 4 31B", "GPT-OSS 20B")
-        val modelIds = arrayOf("nvidia/nemotron-3-super-120b-a12b", "meta/llama-3.3-70b-instruct", "nvidia/llama-3.3-nemotron-super-49b-v1.5", "google/gemma-4-31b-it", "openai/gpt-oss-20b")
+        val models = arrayOf("Nemotron 3 120B A12B", "llama 3.3 N 49B", "Gemma 4 31B", "GPT-OSS 20B")
+        val modelIds = arrayOf("nvidia/nemotron-3-super-120b-a12b", "nvidia/llama-3.3-nemotron-super-49b-v1.5", "google/gemma-4-31b-it", "openai/gpt-oss-20b")
 
         AlertDialog.Builder(this)
             .setTitle("온라인 모델 선택")
@@ -352,6 +352,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     val reader = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8))
                     val fullResponse = StringBuilder()
                     var line = reader.readLine()
+                  
+                    var isFirstToken = true
 
                     while (line != null) {
                         val currentLine = line
@@ -364,11 +366,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 val choices = jsonObject.optJSONArray("choices")
                                 if (choices != null && choices.length() > 0) {
                                     val content = choices.getJSONObject(0).optJSONObject("delta")?.optString("content", "") ?: ""
-                                    if (content.isNotEmpty()) {
-                                        fullResponse.append(content)
-                                        withContext(Dispatchers.Main) {
-                                            aiTv.text = fullResponse.toString()
-                                            scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+
+                                    if (content.isNotEmpty() && content != "null") {
+                                        var cleanedContent = content
+
+                                        if (isFirstToken) {
+                                            cleanedContent = content.trimStart()
+                                            if (cleanedContent.isNotEmpty()) {
+                                                isFirstToken = false
+                                            }
+                                        }
+
+                                        if (cleanedContent.isNotEmpty()) {
+                                            fullResponse.append(cleanedContent)
+                                            withContext(Dispatchers.Main) {
+                                                aiTv.text = fullResponse.toString()
+                                                scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+                                            }
                                         }
                                     }
                                 }
@@ -382,7 +396,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         speakText(finalAnswer)
                     }
                 } else {
-                    // 서버 응답 에러 발생 시 에러 스트림 읽기
                     val errorStream = conn.errorStream
                     val errorLog = if (errorStream != null) {
                         BufferedReader(InputStreamReader(errorStream, Charsets.UTF_8)).use { it.readText() }
