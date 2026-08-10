@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -137,8 +138,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             this.text = text
             setPadding(36, 24, 36, 24)
             textSize = 15f
-            setTextColor(Color.WHITE)
             maxWidth = 850
+            if (isUser) {
+                // 사용자 메시지: 밝은 무채색 (밝은 회색) 배경 + 검은색 글씨로 시인성 확보
+                setTextColor(Color.BLACK)
+                background = ColorDrawable(Color.parseColor("#E0E0E0"))
+            } else {
+                // AI 메시지: 어두운 무채색 (짙은 회색) 배경 + 흰색 글씨
+                setTextColor(Color.WHITE)
+                background = ColorDrawable(Color.parseColor("#2E2E2E"))
+            }
         }
 
         val params = LinearLayout.LayoutParams(
@@ -146,13 +155,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply {
             setMargins(16, 12, 16, 12)
-            if (isUser) {
-                gravity = Gravity.END
-                setBackgroundColor(Color.parseColor("#007AFF"))
-            } else {
-                gravity = Gravity.START
-                setBackgroundColor(Color.parseColor("#333333"))
-            }
+            gravity = if (isUser) Gravity.END else Gravity.START
         }
         tv.layoutParams = params
         chatLayout.addView(tv)
@@ -203,14 +206,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun startTikiTakaMode() {
         isTikiTakaActive = true
         btnVoice.text = "중지"
-        btnVoice.setBackgroundColor(Color.parseColor("#E53935"))
+        // 활성화 상태도 원색(빨간색 등) 대신 뚜렷한 무채색(중간 회색)으로 통일
+        btnVoice.setBackgroundColor(Color.parseColor("#666666"))
         startListening()
     }
 
     private fun stopTikiTakaMode() {
         isTikiTakaActive = false
         btnVoice.text = "음성"
-        btnVoice.setBackgroundColor(Color.parseColor("#222222"))
+        btnVoice.setBackgroundColor(Color.parseColor("#333333"))
         speechRecognizer.stopListening()
         if (tts.isSpeaking) tts.stop()
     }
