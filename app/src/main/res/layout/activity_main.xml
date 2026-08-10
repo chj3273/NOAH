@@ -35,72 +35,78 @@
             android:textSize="11sp" />
     </LinearLayout>
 
-    <LinearLayout
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="start"
+        android:scrollbars="none"
         android:layout_marginBottom="10dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSetApiKey"
-            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+        <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginEnd="6dp"
-            android:backgroundTint="#222222"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="10dp"
-            android:text="API Key"
-            android:textColor="#BBBBBB"
-            android:textSize="11sp"
-            app:cornerRadius="2dp" />
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="start">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSelectLocalFile"
-            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginEnd="6dp"
-            android:backgroundTint="#222222"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="10dp"
-            android:text="로컬 파일"
-            android:textColor="#BBBBBB"
-            android:textSize="11sp"
-            app:cornerRadius="2dp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSetApiKey"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#222222"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="API Key"
+                android:textColor="#BBBBBB"
+                android:textSize="11sp"
+                app:cornerRadius="2dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSelectModel"
-            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginEnd="6dp"
-            android:backgroundTint="#222222"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="10dp"
-            android:text="모델 선택"
-            android:textColor="#BBBBBB"
-            android:textSize="11sp"
-            app:cornerRadius="2dp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelectLocalFile"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#222222"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="로컬 파일"
+                android:textColor="#BBBBBB"
+                android:textSize="11sp"
+                app:cornerRadius="2dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnClearChat"
-            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:backgroundTint="#222222"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="10dp"
-            android:text="초기화"
-            android:textColor="#FF5252"
-            android:textSize="11sp"
-            app:cornerRadius="2dp" />
-    </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelectModel"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#222222"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="모델 선택"
+                android:textColor="#BBBBBB"
+                android:textSize="11sp"
+                app:cornerRadius="2dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetChat"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:backgroundTint="#222222"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="채팅 초기화"
+                android:textColor="#BBBBBB"
+                android:textSize="11sp"
+                app:cornerRadius="2dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvChat"
