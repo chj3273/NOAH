@@ -1,102 +1,161 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#121212"
     android:orientation="vertical"
     android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
 
-        <Button
-            android:id="@+id/btnSetApiKey"
+        <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="API Key 설정" />
+            android:text="NOAH AI"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btnSelectModel"
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/tvModelName"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="AI 모델" />
-
-        <Button
-            android:id="@+id/btnLocalAi"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="로컬 AI 모드" />
+            android:background="#222222"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:text="NVIDIA NIM: Google Gemma 4 31B"
+            android:textColor="#888888"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSetApiKey"
+            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:backgroundTint="#262626"
+            android:text="API KEY"
+            android:textColor="#CCCCCC"
+            android:textSize="12sp"
+            app:cornerRadius="2dp" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSelectLocalFile"
+            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:text="로컬 파일 지정" />
+            android:layout_marginEnd="4dp"
+            android:backgroundTint="#262626"
+            android:text="로컬 파일 선택"
+            android:textColor="#CCCCCC"
+            android:textSize="12sp"
+            app:cornerRadius="2dp" />
 
-        <Button
-            android:id="@+id/btnFallbackSetting"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSelectModel"
+            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_weight="1"
-            android:text="오류 전환 설정" />
+            android:backgroundTint="#262626"
+            android:text="모델 선택"
+            android:textColor="#CCCCCC"
+            android:textSize="12sp"
+            app:cornerRadius="2dp" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvModelName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:textSize="16sp"
-        android:textStyle="bold" />
 
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="8dp">
+        android:fillViewport="true">
 
-        <TextView
-            android:id="@+id/tvResponse"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="15sp" />
+            android:orientation="vertical">
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="#222222"
+                app:cardCornerRadius="4dp"
+                app:cardElevation="0dp">
+
+                <TextView
+                    android:id="@+id/tvResponse"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:text="안녕하세요. NOAH AI입니다. 메시지를 입력하거나 음성 버튼을 누르고 대화해 보세요."
+                    android:textColor="#DDDDDD"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp" />
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
     </ScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
 
         <EditText
             android:id="@+id/etInput"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:hint="질문을 입력하세요..." />
+            android:layout_marginEnd="6dp"
+            android:background="#1C1C1C"
+            android:hint="메시지를 입력하세요..."
+            android:textColorHint="#666666"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:paddingHorizontal="12dp"
+            android:maxLines="1"
+            android:inputType="text" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnVoice"
+            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="음성 모드" />
+            android:layout_height="48dp"
+            android:layout_marginEnd="6dp"
+            android:backgroundTint="#262626"
+            android:text="음성"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            app:cornerRadius="2dp" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSend"
+            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="전송" />
+            android:layout_height="48dp"
+            android:backgroundTint="#333333"
+            android:text="전송"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            app:cornerRadius="2dp" />
     </LinearLayout>
 
 </LinearLayout>
