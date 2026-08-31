@@ -538,47 +538,48 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                     val content = choices.getJSONObject(0).optJSONObject("delta")?.optString("content", "") ?: ""
 
                                     if (content.isNotEmpty() && content != "null") {
-                                        if (content.contains("Safety:") ||
+                                        val isSafeContent = !(content.contains("Safety:") ||
                                             content.contains("User Safety") ||
                                             content.contains("Response Safety") ||
                                             content.contains("<think>") || 
                                             content.contains("</think>") ||
                                             content.contains("Assistant:") ||
-                                            content.contains("System:")) {
-                                            continue
-                                        }
-                                        var cleanedContent = content
+                                            content.contains("System:"))
 
-                                        if (isFirstToken) {
-                                            cleanedContent = content.trimStart()
+                                        if (isSafeContent) {
+                                            var cleanedContent = content
+
+                                            if (isFirstToken) {
+                                                cleanedContent = content.trimStart()
+                                                if (cleanedContent.isNotEmpty()) {
+                                                    isFirstToken = false
+                                                }
+                                            }
+
                                             if (cleanedContent.isNotEmpty()) {
-                                                isFirstToken = false
-                                            }
-                                        }
+                                                fullResponse.append(cleanedContent)
+                                                aiMsg.content = fullResponse.toString()
 
-                                        if (cleanedContent.isNotEmpty()) {
-                                            fullResponse.append(cleanedContent)
-                                            aiMsg.content = fullResponse.toString()
+                                                withContext(Dispatchers.Main) {
+                                                    aiTv.text = fullResponse.toString()
+                                                    scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+                                                }
 
-                                            withContext(Dispatchers.Main) {
-                                                aiTv.text = fullResponse.toString()
-                                                scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
-                                            }
-
-                                            if (isTtsReady) {
-                                                val currentText = fullResponse.toString()
-                                                var i = lastSpokenIndex
-                                                while (i < currentText.length) {
-                                                    if (punctuationSet.contains(currentText[i])) {
-                                                        val sentence = currentText.substring(lastSpokenIndex, i + 1).trim()
-                                                        if (sentence.isNotEmpty() && sentence != "." && sentence != "?" && sentence != "!") {
-                                                            val cleanSentence = sentence.replace(Regex("[*#_~]"), "")
-                                                            val utteranceId = if (i >= currentText.length - 5) "NOAH_FINAL_UTTERANCE" else "NOAH_PART_${i}"
-                                                            tts.speak(cleanSentence, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                                                if (isTtsReady) {
+                                                    val currentText = fullResponse.toString()
+                                                    var i = lastSpokenIndex
+                                                    while (i < currentText.length) {
+                                                        if (punctuationSet.contains(currentText[i])) {
+                                                            val sentence = currentText.substring(lastSpokenIndex, i + 1).trim()
+                                                            if (sentence.isNotEmpty() && sentence != "." && sentence != "?" && sentence != "!") {
+                                                                val cleanSentence = sentence.replace(Regex("[*#_~]"), "")
+                                                                val utteranceId = if (i >= currentText.length - 5) "NOAH_FINAL_UTTERANCE" else "NOAH_PART_${i}"
+                                                                tts.speak(cleanSentence, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                                                            }
+                                                            lastSpokenIndex = i + 1
                                                         }
-                                                        lastSpokenIndex = i + 1
+                                                        i++
                                                     }
-                                                    i++
                                                 }
                                             }
                                         }
