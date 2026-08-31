@@ -483,7 +483,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("content", "너의 이름은 NOAH이다. HJRD에서 만든 AI이며 무조건 한국어로 대화하고 특수한 경우만 영어 등 다른 언어를 사용한다. 사용자의 질문에 답변할 때 한자나 별표, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 한글 텍스트와 일반 문장 부호만 사용하여 자연스러운 구어체로 최대한 빨리 답하라.")
+                        put("content", "너의 이름은 NOAH이다. HJRD에서 만든 AI이며 무조건 한국어로 대화하고 특수한 경우에는 영어까지 허용한다. 중국어, 한자 등은 무조건 사용을 금한다. 사용자의 질문에 답변할 때 한자나 별표나 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 한글 텍스트와 일반 문장 부호만 사용하여 자연스러운 구어체로 최대한 간결하고 빨리 답변하라.")
                     })
 
                     val history = messageHistory.dropLast(1).takeLast(30)
