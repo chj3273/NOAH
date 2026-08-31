@@ -539,7 +539,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
                                     if (content.isNotEmpty() && content != "null") {
                                         val lowerContent = content.lowercase()
-                                        val isSafeContent = !(lowerContent.contains("safety") ||
+                                        // 정확한 메타데이터 로그 문구만 정밀 타겟팅하여 차단 (일반 단어 보호)
+                                        val isSafeContent = !(lowerContent.contains("User Safety: safe") ||
+                                            lowerContent.contains("Response Safety: safe") ||
                                             lowerContent.contains("<think>") || 
                                             lowerContent.contains("</think>") ||
                                             lowerContent.contains("assistant:") ||
