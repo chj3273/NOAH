@@ -96,8 +96,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var chatLayout: LinearLayout
 
     private val PREFS_NAME = "NOAH_PREFS"
-    private val KEY_SELECTED_MODEL = "SELECTED_MODEL_ID"
-    private val KEY_SELECTED_MODEL_NAME = "SELECTED_MODEL_NAME"
     private val KEY_API_KEY = "OPENROUTER_API_KEY"
 
     private lateinit var dbHelper: ChatDatabaseHelper
@@ -125,7 +123,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         chatLayout = findViewById(R.id.chatLayout)
 
         applyCustomComponentStyles()
-        updateModelDisplay()
+        
+        // 좌측 상단 이름을 NOAH로 고정
+        tvModelName.text = "NOAH"
 
         dbHelper = ChatDatabaseHelper(this)
         loadChatHistoryFromDB()
@@ -135,7 +135,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         checkAudioPermission()
 
         btnSetApiKey.setOnClickListener { showApiKeyDialog() }
-        btnSelectModel.setOnClickListener { showModelSelectionDialog() }
+        
+        // 기존 모델 선택 버튼을 채팅방 관리(새 대화 시작) 기능으로 변경
+        btnSelectModel.setOnClickListener { showChatRoomsDialog() }
+        
         btnResetChat.setOnClickListener { resetChatHistory() }
 
         btnVoice.setOnClickListener {
@@ -185,7 +188,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         chatLayout.removeAllViews()
         messageHistory.clear()
         dbHelper.clearAll()
-        Toast.makeText(this, "채팅 내역이 모두 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "현재 채팅 내역이 비워졌습니다.", Toast.LENGTH_SHORT).show()
+    }
+
+    // 기존 모델 선택 자리를 대체한 채팅방 관리 다이얼로그
+    private fun showChatRoomsDialog() {
+        val rooms = arrayOf("현재 대화방", "새 대화방 시작하기 (기존 내용 초기화)")
+        AlertDialog.Builder(this)
+            .setTitle("채팅방 관리")
+            .setItems(rooms) { _, which ->
+                if (which == 1) {
+                    resetChatHistory()
+                }
+            }
+            .show()
     }
 
     private fun addMessageView(text: String, isUser: Boolean): TextView {
@@ -305,12 +321,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         callOpenRouterApiStreaming(aiTv, aiMsg)
     }
 
-    private fun updateModelDisplay() {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "OpenRouter 자동 무료")
-        tvModelName.text = "NOAH AI: $savedModelName"
-    }
-
     private fun showApiKeyDialog() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -341,27 +351,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .show()
     }
 
-    private fun showModelSelectionDialog() {
-        val models = arrayOf("OpenRouter 자동 무료", "Llama 3.3 70B (Free)", "Gemma 2 9B (Free)")
-        val modelIds = arrayOf("openrouter/free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-2-9b-it:free")
-
-        AlertDialog.Builder(this)
-            .setTitle("온라인 모델 선택")
-            .setItems(models) { _, which ->
-                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit()
-                    .putString(KEY_SELECTED_MODEL, modelIds[which])
-                    .putString(KEY_SELECTED_MODEL_NAME, models[which])
-                    .apply()
-                updateModelDisplay()
-            }
-            .show()
-    }
-
     private fun callOpenRouterApiStreaming(aiTv: TextView, aiMsg: ChatMessage) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiKey = prefs.getString(KEY_API_KEY, "") ?: ""
-        val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "openrouter/free") ?: "openrouter/free"
+        // 모델은 openrouter/free로 고정
+        val selectedModel = "openrouter/free"
 
         if (apiKey.isEmpty()) {
             aiTv.text = "[오류] API 키가 설정되지 않았습니다.\n상단 '키' 버튼을 눌러 OpenRouter API 키를 입력해 주세요."
@@ -383,6 +377,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
 
                 val messagesArray = JSONArray().apply {
+                    // 시스템 지침: 이름은 NOAH, 별표(*), 마크다운 기호, 이모지/이모티콘 절대 사용 금지 지령 부여
+                    put(JSONObject().apply {
+                        put("role", "system")
+                        put("content", "너의 이름은 NOAH이다. 사용자의 질문에 답변할 때 별표나 마크다운 기호, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 텍스트와 일반 문장 부호(마침표, 쉼표 등)만 사용하여 자연스러운 구어체로 답하라.")
+                    })
+
                     val history = messageHistory.dropLast(1).takeLast(30)
                     for (msg in history) {
                         if (msg.content.isNotEmpty()) {
