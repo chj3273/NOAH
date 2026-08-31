@@ -538,13 +538,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                     val content = choices.getJSONObject(0).optJSONObject("delta")?.optString("content", "") ?: ""
 
                                     if (content.isNotEmpty() && content != "null") {
-                                        val isSafeContent = !(content.contains("Safety:") ||
-                                            content.contains("User Safety") ||
-                                            content.contains("Response Safety") ||
-                                            content.contains("<think>") || 
-                                            content.contains("</think>") ||
-                                            content.contains("Assistant:") ||
-                                            content.contains("System:"))
+                                        val lowerContent = content.lowercase()
+                                        val isSafeContent = !(lowerContent.contains("safety") ||
+                                            lowerContent.contains("<think>") || 
+                                            lowerContent.contains("</think>") ||
+                                            lowerContent.contains("assistant:") ||
+                                            lowerContent.contains("system:"))
 
                                         if (isSafeContent) {
                                             var cleanedContent = content
