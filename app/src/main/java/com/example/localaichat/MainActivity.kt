@@ -40,19 +40,46 @@ import java.net.URL
 import java.util.Locale
 
 data class ChatMessage(var id: Long = -1, val role: String, var content: String)
+data class ChatRoom(val id: Long, val title: String)
 
-class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, "noah_chat.db", null, 1) {
+class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, "noah_chat_rooms.db", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("CREATE TABLE chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT)")
+        db.execSQL("CREATE TABLE chat_rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT)")
+        db.execSQL("CREATE TABLE chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER, role TEXT, content TEXT)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS chat_history")
+        db.execSQL("DROP TABLE IF EXISTS chat_rooms")
         onCreate(db)
     }
 
-    fun insertMessage(role: String, content: String): Long {
+    fun createRoom(title: String): Long {
+        val values = ContentValues().apply { put("title", title) }
+        return writableDatabase.insert("chat_rooms", null, values)
+    }
+
+    @SuppressLint("Range")
+    fun getAllRooms(): List<ChatRoom> {
+        val list = mutableListOf<ChatRoom>()
+        val cursor = readableDatabase.rawQuery("SELECT * FROM chat_rooms ORDER BY id ASC", null)
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(cursor.getColumnIndex("id"))
+            val title = cursor.getString(cursor.getColumnIndex("title"))
+            list.add(ChatRoom(id, title))
+        }
+        cursor.close()
+        return list
+    }
+
+    fun deleteRoom(roomId: Long) {
+        writableDatabase.delete("chat_history", "room_id = ?", arrayOf(roomId.toString()))
+        writableDatabase.delete("chat_rooms", "id = ?", arrayOf(roomId.toString()))
+    }
+
+    fun insertMessage(roomId: Long, role: String, content: String): Long {
         val values = ContentValues().apply {
+            put("room_id", roomId)
             put("role", role)
             put("content", content)
         }
@@ -65,9 +92,9 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, "noah_cha
     }
 
     @SuppressLint("Range")
-    fun getAllMessages(): List<ChatMessage> {
+    fun getMessagesForRoom(roomId: Long): List<ChatMessage> {
         val list = mutableListOf<ChatMessage>()
-        val cursor = readableDatabase.rawQuery("SELECT * FROM chat_history ORDER BY id ASC", null)
+        val cursor = readableDatabase.rawQuery("SELECT * FROM chat_history WHERE room_id = ? ORDER BY id ASC", arrayOf(roomId.toString()))
         while (cursor.moveToNext()) {
             val id = cursor.getLong(cursor.getColumnIndex("id"))
             val role = cursor.getString(cursor.getColumnIndex("role"))
@@ -76,10 +103,6 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, "noah_cha
         }
         cursor.close()
         return list
-    }
-
-    fun clearAll() {
-        writableDatabase.execSQL("DELETE FROM chat_history")
     }
 }
 
@@ -100,6 +123,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var dbHelper: ChatDatabaseHelper
     private val messageHistory = mutableListOf<ChatMessage>()
+    private var currentRoomId: Long = -1
 
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var tts: TextToSpeech
@@ -123,23 +147,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         chatLayout = findViewById(R.id.chatLayout)
 
         applyCustomComponentStyles()
-        
-        // 좌측 상단 이름을 NOAH로 고정
         tvModelName.text = "NOAH"
 
         dbHelper = ChatDatabaseHelper(this)
-        loadChatHistoryFromDB()
+        initDefaultRoom()
 
         tts = TextToSpeech(this, this)
         initSpeechRecognizer()
         checkAudioPermission()
 
         btnSetApiKey.setOnClickListener { showApiKeyDialog() }
-        
-        // 기존 모델 선택 버튼을 채팅방 관리(새 대화 시작) 기능으로 변경
         btnSelectModel.setOnClickListener { showChatRoomsDialog() }
-        
-        btnResetChat.setOnClickListener { resetChatHistory() }
+        btnResetChat.setOnClickListener { clearCurrentRoom() }
 
         btnVoice.setOnClickListener {
             if (isTikiTakaActive) stopTikiTakaMode() else startTikiTakaMode()
@@ -149,6 +168,61 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             stopTikiTakaMode()
             processUserPrompt(etInput.text.toString().trim())
         }
+    }
+
+    private fun initDefaultRoom() {
+        val rooms = dbHelper.getAllRooms()
+        if (rooms.isEmpty()) {
+            currentRoomId = dbHelper.createRoom("대화방 1")
+        } else {
+            currentRoomId = rooms[0].id
+        }
+        loadChatHistoryForCurrentRoom()
+    }
+
+    private fun loadChatHistoryForCurrentRoom() {
+        chatLayout.removeAllViews()
+        messageHistory.clear()
+        val savedMessages = dbHelper.getMessagesForRoom(currentRoomId)
+        for (msg in savedMessages) {
+            messageHistory.add(msg)
+            if (msg.content.isNotEmpty()) {
+                addMessageView(msg.content, msg.role == "user")
+            }
+        }
+    }
+
+    private fun clearCurrentRoom() {
+        chatLayout.removeAllViews()
+        messageHistory.clear()
+        val rooms = dbHelper.getAllRooms()
+        val currentRoom = rooms.find { it.id == currentRoomId }
+        val title = currentRoom?.title ?: "대화방"
+        dbHelper.deleteRoom(currentRoomId)
+        currentRoomId = dbHelper.createRoom(title)
+        Toast.makeText(this, "현재 대화방이 초기화되었습니다.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showChatRoomsDialog() {
+        val rooms = dbHelper.getAllRooms()
+        val roomTitles = rooms.map { it.title }.toMutableList()
+        roomTitles.add("+ 새 대화방 만들기")
+
+        AlertDialog.Builder(this)
+            .setTitle("채팅방 선택 및 관리")
+            .setItems(roomTitles.toTypedArray()) { _, which ->
+                if (which == rooms.size) {
+                    val newRoomTitle = "대화방 ${rooms.size + 1}"
+                    currentRoomId = dbHelper.createRoom(newRoomTitle)
+                    loadChatHistoryForCurrentRoom()
+                    Toast.makeText(this, "$newRoomTitle 생성됨", Toast.LENGTH_SHORT).show()
+                } else {
+                    currentRoomId = rooms[which].id
+                    loadChatHistoryForCurrentRoom()
+                    Toast.makeText(this, "${rooms[which].title} (으)로 이동", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
     }
 
     private fun applyCustomComponentStyles() {
@@ -171,37 +245,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             setColor(Color.parseColor(colorHex))
             cornerRadius = cornerRadiusDp * density
         }
-    }
-
-    private fun loadChatHistoryFromDB() {
-        messageHistory.clear()
-        val savedMessages = dbHelper.getAllMessages()
-        for (msg in savedMessages) {
-            messageHistory.add(msg)
-            if (msg.content.isNotEmpty()) {
-                addMessageView(msg.content, msg.role == "user")
-            }
-        }
-    }
-
-    private fun resetChatHistory() {
-        chatLayout.removeAllViews()
-        messageHistory.clear()
-        dbHelper.clearAll()
-        Toast.makeText(this, "현재 채팅 내역이 비워졌습니다.", Toast.LENGTH_SHORT).show()
-    }
-
-    // 기존 모델 선택 자리를 대체한 채팅방 관리 다이얼로그
-    private fun showChatRoomsDialog() {
-        val rooms = arrayOf("현재 대화방", "새 대화방 시작하기 (기존 내용 초기화)")
-        AlertDialog.Builder(this)
-            .setTitle("채팅방 관리")
-            .setItems(rooms) { _, which ->
-                if (which == 1) {
-                    resetChatHistory()
-                }
-            }
-            .show()
     }
 
     private fun addMessageView(text: String, isUser: Boolean): TextView {
@@ -309,12 +352,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         if (tts.isSpeaking) tts.stop()
 
-        val userId = dbHelper.insertMessage("user", prompt)
+        val userId = dbHelper.insertMessage(currentRoomId, "user", prompt)
         messageHistory.add(ChatMessage(userId, "user", prompt))
         addMessageView(prompt, true)
 
-        val aiTv = addMessageView("생각 중...", false)
-        val aiId = dbHelper.insertMessage("assistant", "")
+        val aiTv = addMessageView("...", false)
+        val aiId = dbHelper.insertMessage(currentRoomId, "assistant", "")
         val aiMsg = ChatMessage(aiId, "assistant", "")
         messageHistory.add(aiMsg)
 
@@ -354,7 +397,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun callOpenRouterApiStreaming(aiTv: TextView, aiMsg: ChatMessage) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiKey = prefs.getString(KEY_API_KEY, "") ?: ""
-        // 모델은 openrouter/free로 고정
         val selectedModel = "openrouter/free"
 
         if (apiKey.isEmpty()) {
@@ -377,7 +419,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
 
                 val messagesArray = JSONArray().apply {
-                    // 시스템 지침: 이름은 NOAH, 별표(*), 마크다운 기호, 이모지/이모티콘 절대 사용 금지 지령 부여
                     put(JSONObject().apply {
                         put("role", "system")
                         put("content", "너의 이름은 NOAH이다. 사용자의 질문에 답변할 때 별표나 마크다운 기호, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 텍스트와 일반 문장 부호(마침표, 쉼표 등)만 사용하여 자연스러운 구어체로 답하라.")
