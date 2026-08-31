@@ -41,7 +41,7 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:layout_marginHorizontal="4dp"
-            android:text="AI 모델"
+            android:text="채팅방"
             android:textSize="12sp"
             android:textColor="#FFFFFF"
             android:backgroundTint="#333333"
