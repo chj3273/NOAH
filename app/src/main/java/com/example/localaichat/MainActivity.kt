@@ -59,6 +59,11 @@ class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, "noah_cha
         return writableDatabase.insert("chat_rooms", null, values)
     }
 
+    fun updateRoomTitle(roomId: Long, newTitle: String) {
+        val values = ContentValues().apply { put("title", newTitle) }
+        writableDatabase.update("chat_rooms", values, "id = ?", arrayOf(roomId.toString()))
+    }
+
     @SuppressLint("Range")
     fun getAllRooms(): List<ChatRoom> {
         val list = mutableListOf<ChatRoom>()
@@ -148,6 +153,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         applyCustomComponentStyles()
         tvModelName.text = "NOAH"
+        btnSelectModel.text = "채팅방"
 
         dbHelper = ChatDatabaseHelper(this)
         initDefaultRoom()
@@ -217,11 +223,67 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     loadChatHistoryForCurrentRoom()
                     Toast.makeText(this, "$newRoomTitle 생성됨", Toast.LENGTH_SHORT).show()
                 } else {
-                    currentRoomId = rooms[which].id
-                    loadChatHistoryForCurrentRoom()
-                    Toast.makeText(this, "${rooms[which].title} (으)로 이동", Toast.LENGTH_SHORT).show()
+                    val selectedRoom = rooms[which]
+                    AlertDialog.Builder(this)
+                        .setTitle(selectedRoom.title)
+                        .setItems(arrayOf("대화방 열기", "대화방 이름 수정", "대화방 삭제")) { _, subWhich ->
+                            when (subWhich) {
+                                0 -> {
+                                    currentRoomId = selectedRoom.id
+                                    loadChatHistoryForCurrentRoom()
+                                    Toast.makeText(this, "${selectedRoom.title} (으)로 이동", Toast.LENGTH_SHORT).show()
+                                }
+                                1 -> {
+                                    showRenameRoomDialog(selectedRoom)
+                                }
+                                2 -> {
+                                    if (rooms.size <= 1) {
+                                        Toast.makeText(this, "마지막 대화방은 삭제할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        dbHelper.deleteRoom(selectedRoom.id)
+                                        if (currentRoomId == selectedRoom.id) {
+                                            val remainingRooms = dbHelper.getAllRooms()
+                                            currentRoomId = remainingRooms[0].id
+                                        }
+                                        loadChatHistoryForCurrentRoom()
+                                        Toast.makeText(this, "대화방이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
+                        .show()
                 }
             }
+            .show()
+    }
+
+    private fun showRenameRoomDialog(room: ChatRoom) {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(60, 20, 60, 0)
+        }
+
+        val input = EditText(this).apply {
+            setText(room.title)
+            setTextColor(Color.parseColor("#FFFFFF"))
+            setHintTextColor(Color.parseColor("#888888"))
+            background = createRoundedDrawable("#2E2E2E", 8f)
+            setPadding(32, 24, 32, 24)
+        }
+
+        container.addView(input)
+
+        AlertDialog.Builder(this)
+            .setTitle("대화방 이름 수정")
+            .setView(container)
+            .setPositiveButton("저장") { _, _ ->
+                val newTitle = input.text.toString().trim()
+                if (newTitle.isNotEmpty()) {
+                    dbHelper.updateRoomTitle(room.id, newTitle)
+                    Toast.makeText(this, "대화방 이름이 변경되었습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("취소", null)
             .show()
     }
 
@@ -356,7 +418,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         messageHistory.add(ChatMessage(userId, "user", prompt))
         addMessageView(prompt, true)
 
-        val aiTv = addMessageView("...", false)
+        val aiTv = addMessageView("생각 중...", false)
         val aiId = dbHelper.insertMessage(currentRoomId, "assistant", "")
         val aiMsg = ChatMessage(aiId, "assistant", "")
         messageHistory.add(aiMsg)
@@ -421,7 +483,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("content", "너의 이름은 NOAH이다. 사용자의 질문에 답변할 때 별표나 마크다운 기호, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 텍스트와 일반 문장 부호(마침표, 쉼표 등)만 사용하여 자연스러운 구어체로 답하라.")
+                        put("content", "너의 이름은 NOAH이다. 사용자의 질문에 답변할 때 별표나 마크다운 기호, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 텍스트와 일반 문장 부호만 사용하여 자연스러운 구어체로 답하라.")
                     })
 
                     val history = messageHistory.dropLast(1).takeLast(30)
