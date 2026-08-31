@@ -1,9 +1,13 @@
 package com.example.localaichat
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -35,6 +39,50 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 
+data class ChatMessage(var id: Long = -1, val role: String, var content: String)
+
+class ChatDatabaseHelper(context: Context) : SQLiteOpenHelper(context, "noah_chat.db", null, 1) {
+    override fun onCreate(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT)")
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS chat_history")
+        onCreate(db)
+    }
+
+    fun insertMessage(role: String, content: String): Long {
+        val values = ContentValues().apply {
+            put("role", role)
+            put("content", content)
+        }
+        return writableDatabase.insert("chat_history", null, values)
+    }
+
+    fun updateMessage(id: Long, content: String) {
+        val values = ContentValues().apply { put("content", content) }
+        writableDatabase.update("chat_history", values, "id = ?", arrayOf(id.toString()))
+    }
+
+    @SuppressLint("Range")
+    fun getAllMessages(): List<ChatMessage> {
+        val list = mutableListOf<ChatMessage>()
+        val cursor = readableDatabase.rawQuery("SELECT * FROM chat_history ORDER BY id ASC", null)
+        while (cursor.moveToNext()) {
+            val id = cursor.getLong(cursor.getColumnIndex("id"))
+            val role = cursor.getString(cursor.getColumnIndex("role"))
+            val content = cursor.getString(cursor.getColumnIndex("content"))
+            list.add(ChatMessage(id, role, content))
+        }
+        cursor.close()
+        return list
+    }
+
+    fun clearAll() {
+        writableDatabase.execSQL("DELETE FROM chat_history")
+    }
+}
+
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var tvModelName: TextView
@@ -50,9 +98,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val PREFS_NAME = "NOAH_PREFS"
     private val KEY_SELECTED_MODEL = "SELECTED_MODEL_ID"
     private val KEY_SELECTED_MODEL_NAME = "SELECTED_MODEL_NAME"
-    private val KEY_API_KEY = "NVIDIA_API_KEY"
+    private val KEY_API_KEY = "OPENROUTER_API_KEY"
 
-    private val messageHistory = mutableListOf<Pair<String, Boolean>>()
+    private lateinit var dbHelper: ChatDatabaseHelper
+    private val messageHistory = mutableListOf<ChatMessage>()
 
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var tts: TextToSpeech
@@ -76,9 +125,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         chatLayout = findViewById(R.id.chatLayout)
 
         applyCustomComponentStyles()
-
-        addMessageView("안녕하세요. NOAH AI입니다. 질문을 입력하거나 음성 대화를 사용해 보세요.", false)
         updateModelDisplay()
+
+        dbHelper = ChatDatabaseHelper(this)
+        loadChatHistoryFromDB()
 
         tts = TextToSpeech(this, this)
         initSpeechRecognizer()
@@ -120,16 +170,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun loadChatHistoryFromDB() {
+        messageHistory.clear()
+        val savedMessages = dbHelper.getAllMessages()
+        for (msg in savedMessages) {
+            messageHistory.add(msg)
+            if (msg.content.isNotEmpty()) {
+                addMessageView(msg.content, msg.role == "user")
+            }
+        }
+    }
+
     private fun resetChatHistory() {
         chatLayout.removeAllViews()
         messageHistory.clear()
-        addMessageView("대화 내역이 초기화되었습니다. 무엇을 도와드릴까요?", false)
-        Toast.makeText(this, "채팅 초기화 완료", Toast.LENGTH_SHORT).show()
+        dbHelper.clearAll()
+        Toast.makeText(this, "채팅 내역이 모두 삭제되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
     private fun addMessageView(text: String, isUser: Boolean): TextView {
-        messageHistory.add(Pair(text, isUser))
-
         val tv = TextView(this).apply {
             this.text = text
             setPadding(40, 26, 40, 26)
@@ -234,15 +293,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         if (tts.isSpeaking) tts.stop()
 
+        val userId = dbHelper.insertMessage("user", prompt)
+        messageHistory.add(ChatMessage(userId, "user", prompt))
         addMessageView(prompt, true)
-        val aiTv = addMessageView("생각 중...", false)
 
-        callNvidiaApiStreaming(prompt, aiTv)
+        val aiTv = addMessageView("생각 중...", false)
+        val aiId = dbHelper.insertMessage("assistant", "")
+        val aiMsg = ChatMessage(aiId, "assistant", "")
+        messageHistory.add(aiMsg)
+
+        callOpenRouterApiStreaming(aiTv, aiMsg)
     }
 
     private fun updateModelDisplay() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "llama 3.3 N 49B")
+        val savedModelName = prefs.getString(KEY_SELECTED_MODEL_NAME, "OpenRouter 자동 무료")
         tvModelName.text = "NOAH AI: $savedModelName"
     }
 
@@ -256,7 +321,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         val input = EditText(this).apply {
             setText(prefs.getString(KEY_API_KEY, ""))
-            hint = "nvapi-..."
+            hint = "sk-or-v1-..."
             setTextColor(Color.parseColor("#FFFFFF"))
             setHintTextColor(Color.parseColor("#888888"))
             background = createRoundedDrawable("#2E2E2E", 8f)
@@ -266,7 +331,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         container.addView(input)
 
         AlertDialog.Builder(this)
-            .setTitle("NVIDIA API Key")
+            .setTitle("OpenRouter API Key")
             .setView(container)
             .setPositiveButton("저장") { _, _ ->
                 prefs.edit().putString(KEY_API_KEY, input.text.toString().trim()).apply()
@@ -277,8 +342,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun showModelSelectionDialog() {
-        val models = arrayOf("llama 3.3 N 49B", "Gemma 4 31B", "GPT-OSS 20B")
-        val modelIds = arrayOf("nvidia/llama-3.3-nemotron-super-49b-v1.5", "google/gemma-4-31b-it", "openai/gpt-oss-20b")
+        val models = arrayOf("OpenRouter 자동 무료", "Llama 3.3 70B (Free)", "Gemma 2 9B (Free)")
+        val modelIds = arrayOf("openrouter/free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-2-9b-it:free")
 
         AlertDialog.Builder(this)
             .setTitle("온라인 모델 선택")
@@ -293,23 +358,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .show()
     }
 
-    private fun callNvidiaApiStreaming(prompt: String, aiTv: TextView) {
+    private fun callOpenRouterApiStreaming(aiTv: TextView, aiMsg: ChatMessage) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val apiKey = prefs.getString(KEY_API_KEY, "") ?: ""
-        val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "nvidia/llama-3.3-nemotron-super-49b-v1.5") ?: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+        val selectedModel = prefs.getString(KEY_SELECTED_MODEL, "openrouter/free") ?: "openrouter/free"
 
         if (apiKey.isEmpty()) {
-            aiTv.text = "[오류] API 키가 설정되지 않았습니다.\n상단 '키' 버튼을 눌러 NVIDIA API 키를 입력해 주세요."
+            aiTv.text = "[오류] API 키가 설정되지 않았습니다.\n상단 '키' 버튼을 눌러 OpenRouter API 키를 입력해 주세요."
             return
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val url = URL("https://integrate.api.nvidia.com/v1/chat/completions")
+                val url = URL("https://openrouter.ai/api/v1/chat/completions")
                 val conn = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     setRequestProperty("Authorization", "Bearer $apiKey")
                     setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("HTTP-Referer", "https://github.com/NOAH-AI")
                     setRequestProperty("Accept", "text/event-stream")
                     connectTimeout = 60000
                     readTimeout = 60000
@@ -317,16 +383,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
 
                 val messagesArray = JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", "너는 한국어 AI 비서 NOAH이다. 항상 정확하고 빠른 답변을 제공하는 것을 목표로 하고, 특수문자나 이모티콘 없이 자연스러운 구어체 형식의 텍스트로만 답변하라.")
-                    })
-                    val history = messageHistory.takeLast(30)
-                    for ((msg, isUser) in history) {
-                        if (msg != "생각 중...") {
+                    val history = messageHistory.dropLast(1).takeLast(30)
+                    for (msg in history) {
+                        if (msg.content.isNotEmpty()) {
                             put(JSONObject().apply {
-                                put("role", if (isUser) "user" else "assistant")
-                                put("content", msg)
+                                put("role", msg.role)
+                                put("content", msg.content)
                             })
                         }
                     }
@@ -361,7 +423,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         val currentLine = line
                         if (currentLine.startsWith("data: ")) {
                             val data = currentLine.removePrefix("data: ").trim()
-                            if (data == "[DONE]") break
+                            if (data == "[DONE]") {
+                                dbHelper.updateMessage(aiMsg.id, aiMsg.content)
+                                break
+                            }
 
                             try {
                                 val jsonObject = JSONObject(data)
@@ -381,6 +446,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
                                         if (cleanedContent.isNotEmpty()) {
                                             fullResponse.append(cleanedContent)
+                                            aiMsg.content = fullResponse.toString()
+
                                             withContext(Dispatchers.Main) {
                                                 aiTv.text = fullResponse.toString()
                                                 scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
@@ -418,19 +485,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         }
                     }
                 } else {
-                    val errorStream = conn.errorStream
-                    val errorLog = if (errorStream != null) {
-                        BufferedReader(InputStreamReader(errorStream, Charsets.UTF_8)).use { it.readText() }
-                    } else {
-                        "상세 에러 내용 없음"
-                    }
                     withContext(Dispatchers.Main) {
-                        aiTv.text = "[API 오류 발생]\n코드: ${conn.responseCode}\n로그:\n$errorLog"
+                        aiTv.text = "[API 오류 발생]\n코드: ${conn.responseCode}"
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    aiTv.text = "[네트워크 오류 로그]\n${e.localizedMessage ?: e.toString()}"
+                    aiTv.text = "[네트워크 오류]\n${e.localizedMessage ?: e.toString()}"
                 }
             }
         }
@@ -444,6 +505,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        dbHelper.close()
         if (::speechRecognizer.isInitialized) speechRecognizer.destroy()
         if (::tts.isInitialized) {
             tts.stop()
