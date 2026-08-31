@@ -538,6 +538,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                     val content = choices.getJSONObject(0).optJSONObject("delta")?.optString("content", "") ?: ""
 
                                     if (content.isNotEmpty() && content != "null") {
+                                        if (content.contains("Safety:") ||
+                                            content.contains("User Safety") ||
+                                            content.contains("Response Safety") ||
+                                            content.contains("<think>") || 
+                                            content.contains("</think>") ||
+                                            content.contains("Assistant:") ||
+                                            content.contains("System:")) {
+                                            continue
+                                        }
                                         var cleanedContent = content
 
                                         if (isFirstToken) {
