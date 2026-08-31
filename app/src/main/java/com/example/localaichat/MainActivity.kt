@@ -418,7 +418,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         messageHistory.add(ChatMessage(userId, "user", prompt))
         addMessageView(prompt, true)
 
-        val aiTv = addMessageView("생각 중...", false)
+        val aiTv = addMessageView("...", false)
         val aiId = dbHelper.insertMessage(currentRoomId, "assistant", "")
         val aiMsg = ChatMessage(aiId, "assistant", "")
         messageHistory.add(aiMsg)
@@ -483,7 +483,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val messagesArray = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("content", "너의 이름은 NOAH이다. 사용자의 질문에 답변할 때 별표나 마크다운 기호, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 텍스트와 일반 문장 부호만 사용하여 자연스러운 구어체로 답하라.")
+                        put("content", "너의 이름은 NOAH이다. 사용자의 질문에 답변할 때 별표나 마크다운 기호, 특수문자, 그리고 이모지나 이모티콘은 절대 사용하지 마라. 오직 순수 한국어 텍스트와 일반 문장 부호만 사용하여 자연스러운 구어체로 답하라.")
                     })
 
                     val history = messageHistory.dropLast(1).takeLast(30)
